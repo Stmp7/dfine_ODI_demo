@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SCR-927 — Objective-Driven Investigation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #0a0e14; color: #c9d1d9; font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; overflow: hidden; }
+  .panel { background: #0f1420; }
+  .panel-border { border-color: #1f2937; }
+
+  /* Off-path */
+  .node-off circle, .node-off rect { fill: #1e293b; stroke: #475569; stroke-width: 1; }
+  .node-off text { fill: #94a3b8; }
+  .node-off { opacity: 0.7; }
+  .edge-off { stroke: #475569; stroke-width: 1; opacity: 0.45; }
+
+  /* Selected (primary) path */
+  .edge-A { stroke: #06b6d4; stroke-width: 2.5; opacity: 0.9; }
+  .node-A circle, .node-A rect { fill: #0a2638; stroke: #06b6d4; stroke-width: 2; }
+  .node-A text { fill: #67e8f9; font-weight: 600; }
+
+  /* Alternate paths B and C — gray, recessive */
+  .edge-B, .edge-C { stroke: #475569; stroke-width: 1.5; opacity: 0.55; }
+  .node-B circle, .node-B rect, .node-C circle, .node-C rect { fill: #1e293b; stroke: #475569; stroke-width: 1; }
+  .node-B text, .node-C text { fill: #94a3b8; }
+  .node-B, .node-C { opacity: 0.7; }
+
+  /* Active hop on selected path */
+  .node-active circle, .node-active rect,
+  .is-active circle, .is-active rect { fill: #06b6d4; stroke: #67e8f9; stroke-width: 3; }
+  .node-active text,
+  .is-active text { fill: #062c3a; font-weight: 700; }
+
+  /* Verified hop */
+  .node-verified circle, .node-verified rect { stroke: #10b981 !important; }
+  .node-verified text { fill: #6ee7b7 !important; }
+
+  /* Pulse halo */
+  @keyframes pulse-halo { 0%, 100% { r: 24; opacity: 0.55; } 50% { r: 36; opacity: 0.0; } }
+  .pulse { animation: pulse-halo 1.6s ease-in-out infinite; fill: none; stroke: #06b6d4; stroke-width: 2; }
+
+  /* Path verification celebration */
+  .edge-A.verified-edge { stroke: #10b981; stroke-width: 3; opacity: 1; filter: drop-shadow(0 0 4px #10b981); transition: all 200ms ease; }
+  @keyframes target-flash {
+    0%   { fill: #f43f5e; }
+    25%  { fill: #fbbf24; }
+    100% { fill: #10b981; }
+  }
+  .target-flash circle, .target-flash rect { animation: target-flash 800ms ease-out forwards; stroke: #6ee7b7 !important; stroke-width: 3 !important; }
+  @keyframes celebration-card-in {
+    0%   { opacity: 0; transform: translate(-50%, -45%) scale(0.92); }
+    60%  { opacity: 1; transform: translate(-50%, -52%) scale(1.02); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  #path-celebration > div > div { animation: celebration-card-in 400ms ease-out; }
+  /* Confetti-like sparks */
+  @keyframes spark-burst { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); } }
+  .spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; animation: spark-burst 900ms ease-out forwards; }
+
+  /* Zone shading */
+  .zone-it { fill: #0a1422; opacity: 0.6; }
+  .zone-dmz { fill: #1f1810; opacity: 0.4; }
+  .zone-ot { fill: #0e1a18; opacity: 0.6; }
+
+  /* Rail (legacy card style, retained for any leftover refs) */
+  .rail-card { background: #0f1420; border: 1px solid #1f2937; border-radius: 8px; transition: all 0.15s; cursor: pointer; }
+  .rail-card:hover { border-color: #475569; }
+  .rail-card.active { border-color: #06b6d4; border-left-width: 4px; box-shadow: 0 6px 18px -6px rgba(6,182,212,0.5); background: linear-gradient(135deg, #0f1420 0%, #0a2638 100%); }
+  .rail-card.verified { border-color: #064e3b; }
+
+  /* SVG hop nodes — clickable */
+  .hop { cursor: pointer; }
+  .hop:hover circle, .hop:hover rect { stroke-width: 3; }
+
+  /* Detail panel slide-out animation */
+  #detail-panel { transition: width 250ms ease, transform 250ms ease, opacity 200ms ease; overflow: hidden; }
+  #detail-panel.closed { width: 0 !important; transform: translateX(20px); opacity: 0; border-left-width: 0; }
+
+  /* Status dropdown */
+  .status-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 5px; border: 1px solid; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .status-btn[data-state="in_progress"] { background: #0f172a; border-color: #475569; color: #cbd5e1; }
+  .status-btn[data-state="in_progress"]:hover { background: #1e293b; }
+  .status-btn[data-state="verified"] { background: rgba(6,78,59,0.4); border-color: #047857; color: #6ee7b7; }
+  .status-btn[data-state="verified"]:hover { background: rgba(6,78,59,0.6); }
+  .status-btn[data-state="failed"] { background: rgba(76,5,25,0.4); border-color: #be123c; color: #fda4af; }
+  .status-btn[data-state="failed"]:hover { background: rgba(76,5,25,0.6); }
+
+  .status-menu { background: #0f1420; border: 1px solid #334155; border-radius: 6px; box-shadow: 0 8px 20px -4px rgba(0,0,0,0.6); min-width: 200px; padding: 4px; }
+  .status-menu-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 4px; cursor: pointer; width: 100%; text-align: left; font-size: 12px; color: #cbd5e1; background: transparent; border: 0; }
+  .status-menu-item:hover { background: #1f2937; }
+  .status-menu-item.current { background: #1f2937; opacity: 0.6; cursor: default; }
+  .status-menu-item .icon-in_progress { color: #94a3b8; }
+  .status-menu-item .icon-verified { color: #6ee7b7; }
+  .status-menu-item .icon-failed { color: #fda4af; }
+
+  /* Thin progress bar dots */
+  .rail-dot { width: 10px; height: 10px; border-radius: 50%; background: #334155; border: 1px solid #475569; cursor: pointer; transition: all 0.15s; padding: 0; }
+  .rail-dot:hover { transform: scale(1.3); border-color: #94a3b8; }
+  .rail-dot.verified { background: #10b981; border-color: #10b981; }
+  .rail-dot.active { background: #06b6d4; border-color: #67e8f9; box-shadow: 0 0 0 4px rgba(6,182,212,0.25); }
+  .rail-dot.failed { background: #f43f5e; border-color: #fb7185; }
+  .rail-dot.target { background: transparent; border: 2px dashed #fbbf24; width: 14px; height: 14px; }
+
+  .journal-entry { background: #0f1420; border: 1px solid #1f2937; border-radius: 6px; }
+  .path-card { background: #0f1420; border: 1px solid #1f2937; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .path-card:hover { border-color: #475569; }
+  .path-card.selected-A { border-color: #06b6d4; border-left-width: 3px; }
+  .path-card.selected-B { border-left-color: #a78bfa; border-left-width: 3px; }
+  .path-card.selected-C { border-left-color: #fbbf24; border-left-width: 3px; }
+
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+  *::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+  .chip { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; border-width: 1px; }
+  .chip-btn { padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; border-width: 1px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="panel border-b panel-border flex items-center justify-between px-5" style="height: 56px;">
+  <div class="flex items-center gap-2 text-sm">
+    <span class="text-slate-500">Network</span>
+    <span class="text-slate-700">›</span>
+    <span class="text-slate-500">Objectives</span>
+    <span class="text-slate-700">›</span>
+    <span class="font-medium text-slate-200">Compromise PLC-03 (Mixing-Line)</span>
+    <span class="chip bg-cyan-950 text-cyan-300 border-cyan-900 ml-2">Path Traversal</span>
+  </div>
+  <div class="flex items-center gap-3 text-xs">
+    <span class="chip bg-amber-950 text-amber-300 border-amber-900">Under Investigation</span>
+    <span class="text-slate-400">5/8 hops verified · path A</span>
+    <span class="text-slate-700">|</span>
+    <div class="flex items-center gap-1.5">
+      <div class="w-6 h-6 rounded-full bg-violet-900 border border-violet-700 flex items-center justify-center text-[10px] font-medium text-violet-200">JS</div>
+      <span class="text-slate-400">J. Smith</span>
+    </div>
+    <button id="btn-mute" class="text-slate-500 hover:text-slate-200 p-1 rounded" aria-label="Toggle sound" title="Toggle sound">
+      <svg id="icon-sound-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <svg id="icon-sound-off" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+    </button>
+    <button class="px-3 py-1.5 rounded bg-slate-800 text-slate-500 border border-slate-700 text-xs font-medium cursor-not-allowed flex items-center gap-1.5">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      Mark Complete
+    </button>
+  </div>
+</header>
+
+<!-- BODY -->
+<div class="flex" style="height: calc(100vh - 56px);">
+
+  <!-- LEFT: Objectives & Dream paths -->
+  <aside class="panel border-r panel-border flex flex-col" style="width: 360px;">
+
+    <div class="border-b panel-border">
+      <button id="objective-toggle" class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-900/40 transition-colors text-left">
+        <div class="min-w-0">
+          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-1">Objective</div>
+          <div class="text-sm font-semibold text-slate-200 truncate">Compromise PLC-03 (Mixing-Line)</div>
+        </div>
+        <svg id="objective-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" class="flex-shrink-0 ml-2 transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="objective-details" class="px-4 pb-3 hidden">
+        <div class="grid grid-cols-2 gap-y-1.5 text-[11px]">
+          <span class="text-slate-500">Type</span><span class="text-slate-300">Path Traversal</span>
+          <span class="text-slate-500">Target</span><span class="text-cyan-300">PLC-03 / OT Level-1</span>
+          <span class="text-slate-500">Entry</span><span class="text-slate-300">any (open)</span>
+          <span class="text-slate-500">Created</span><span class="text-slate-400">2 days ago</span>
+        </div>
+        <div class="mt-2 text-[11px] text-slate-500 leading-relaxed border-t panel-border pt-2">Customer needs to know whether mixing-line PLC is reachable from corporate IT post-DMZ drift on Apr 23.</div>
+      </div>
+    </div>
+
+    <div class="px-4 pt-3 pb-2 flex items-center justify-between">
+      <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Dream paths</span>
+      <span class="text-[11px] text-slate-500">47 paths</span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+
+      <!-- Path 1 — selected, in progress -->
+      <div class="path-card selected-A p-3" data-path="1">
+        <div class="text-xs font-semibold text-slate-100">DMZ pivot · 8 hops</div>
+        <div class="text-[11px] text-amber-400 mt-1">5 of 8 verified</div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Web-01 → Historian → PLC-03</div>
+      </div>
+
+      <!-- Path 2 — untouched -->
+      <div class="path-card p-3" data-path="2">
+        <div class="text-xs font-semibold text-slate-200">Phishing · 8 hops</div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Mail-01 → Eng-WS → HMI-01 → PLC-03</div>
+      </div>
+
+      <!-- Path 3 — untouched -->
+      <div class="path-card p-3" data-path="3">
+        <div class="text-xs font-semibold text-slate-200">VPN compromise · 7 hops</div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">VPN-GW → Adm-WS → OPC-SRV → PLC-03</div>
+      </div>
+
+      <!-- Path 4 — failed (chain hidden, dismissed) -->
+      <div class="path-card p-3 opacity-70" data-path="4">
+        <div class="text-xs font-semibold text-slate-300">DMZ pivot · 9 hops</div>
+        <div class="text-[11px] text-rose-400 mt-1">Failed at hop 6</div>
+      </div>
+
+      <!-- Path 5 — untouched -->
+      <div class="path-card p-3" data-path="5">
+        <div class="text-xs font-semibold text-slate-200">Lateral movement · 10 hops</div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Eng-WS → Jump-Host → SCADA-PRI → PLC-03</div>
+      </div>
+
+      <!-- Path 6 — untouched -->
+      <div class="path-card p-3" data-path="6">
+        <div class="text-xs font-semibold text-slate-200">Cred replay · 6 hops</div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Adm-WS → Jump-Host → SCADA-PRI → PLC-03</div>
+      </div>
+
+      <!-- Path 7 — verified -->
+      <div class="path-card p-3" data-path="7">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-semibold text-slate-200">DMZ pivot · 4 hops</div>
+          <span class="text-emerald-400 text-[11px]">✓ Verified</span>
+        </div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">VPN-GW → OPC-SRV → PLC-03</div>
+      </div>
+
+      <!-- Path 8 — untouched -->
+      <div class="path-card p-3" data-path="8">
+        <div class="text-xs font-semibold text-slate-200">Phishing · 7 hops</div>
+        <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Mail-01 → Dev-WS → Eng-WS → PLC-03</div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- CENTER: Canvas + Rail -->
+  <main class="flex-1 flex flex-col min-w-0">
+
+    <!-- Canvas -->
+    <div class="flex-1 relative overflow-hidden" style="background: radial-gradient(ellipse at 60% 50%, #0d1726 0%, #0a0e14 65%);">
+
+      <svg class="absolute inset-0 w-full h-full opacity-[0.04]" preserveAspectRatio="none">
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#9ca3af" stroke-width="0.5"/></pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+      </svg>
+
+      <svg id="canvas" class="absolute inset-0 w-full h-full" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+
+        <!-- ZONE BACKGROUNDS -->
+        <!-- ============ EDGES ============ -->
+        <!-- Off-path background edges -->
+        <g class="edges-off">
+          <line class="edge-off" x1="50" y1="100" x2="130" y2="180"/>
+          <line class="edge-off" x1="130" y1="180" x2="210" y2="200"/>
+          <line class="edge-off" x1="210" y1="60" x2="290" y2="60"/>
+          <line class="edge-off" x1="210" y1="125" x2="290" y2="200"/>
+          <line class="edge-off" x1="290" y1="60" x2="370" y2="125"/>
+          <line class="edge-off" x1="290" y1="200" x2="370" y2="270"/>
+          <line class="edge-off" x1="370" y1="60" x2="370" y2="125"/>
+          <line class="edge-off" x1="370" y1="200" x2="370" y2="270"/>
+          <line class="edge-off" x1="60" y1="240" x2="130" y2="320"/>
+          <line class="edge-off" x1="60" y1="320" x2="130" y2="320"/>
+          <line class="edge-off" x1="130" y1="320" x2="200" y2="320"/>
+          <line class="edge-off" x1="200" y1="320" x2="270" y2="320"/>
+          <line class="edge-off" x1="270" y1="320" x2="340" y2="320"/>
+          <line class="edge-off" x1="340" y1="320" x2="370" y2="270"/>
+          <line class="edge-off" x1="370" y1="270" x2="490" y2="290"/>
+          <line class="edge-off" x1="270" y1="320" x2="210" y2="200"/>
+          <line class="edge-off" x1="490" y1="430" x2="490" y2="360"/>
+          <line class="edge-off" x1="490" y1="430" x2="650" y2="170"/>
+          <line class="edge-off" x1="730" y1="240" x2="810" y2="240"/>
+          <line class="edge-off" x1="810" y1="240" x2="830" y2="320"/>
+          <line class="edge-off" x1="730" y1="240" x2="750" y2="320"/>
+          <line class="edge-off" x1="650" y1="240" x2="590" y2="320"/>
+          <line class="edge-off" x1="590" y1="320" x2="590" y2="400"/>
+          <line class="edge-off" x1="670" y1="320" x2="670" y2="400"/>
+          <line class="edge-off" x1="750" y1="320" x2="750" y2="400"/>
+          <line class="edge-off" x1="830" y1="320" x2="830" y2="400"/>
+          <line class="edge-off" x1="910" y1="320" x2="910" y2="400"/>
+          <line class="edge-off" x1="590" y1="400" x2="590" y2="480"/>
+          <line class="edge-off" x1="670" y1="400" x2="670" y2="480"/>
+          <line class="edge-off" x1="750" y1="400" x2="750" y2="480"/>
+          <line class="edge-off" x1="830" y1="400" x2="830" y2="480"/>
+          <line class="edge-off" x1="910" y1="400" x2="910" y2="480"/>
+          <line class="edge-off" x1="670" y1="480" x2="660" y2="540"/>
+          <line class="edge-off" x1="830" y1="480" x2="820" y2="540"/>
+          <line class="edge-off" x1="590" y1="100" x2="590" y2="170"/>
+          <line class="edge-off" x1="650" y1="170" x2="650" y2="240"/>
+        </g>
+
+        <!-- Path C edges (amber) -->
+        <g class="edges-C">
+          <line class="edge-C" x1="50" y1="100" x2="210" y2="200"/>
+          <line class="edge-C" x1="210" y1="200" x2="270" y2="320"/>
+          <line class="edge-C" x1="270" y1="320" x2="490" y2="220"/>
+          <line class="edge-C" x1="490" y1="220" x2="490" y2="360"/>
+          <line class="edge-C" x1="490" y1="360" x2="650" y2="240"/>
+          <line class="edge-C" x1="650" y1="240" x2="750" y2="320"/>
+        </g>
+
+        <!-- Path B edges (violet) -->
+        <g class="edges-B">
+          <line class="edge-B" x1="50" y1="100" x2="130" y2="100"/>
+          <line class="edge-B" x1="130" y1="100" x2="210" y2="125"/>
+          <line class="edge-B" x1="210" y1="125" x2="130" y2="320"/>
+          <line class="edge-B" x1="130" y1="320" x2="590" y2="100"/>
+          <line class="edge-B" x1="590" y1="100" x2="590" y2="170"/>
+          <line class="edge-B" x1="590" y1="170" x2="730" y2="240"/>
+          <line class="edge-B" x1="730" y1="240" x2="750" y2="320"/>
+        </g>
+
+        <!-- Path A edges (cyan, primary) -->
+        <g class="edges-A">
+          <line class="edge-A" x1="50" y1="100" x2="130" y2="100"/>
+          <line class="edge-A" x1="130" y1="100" x2="210" y2="60"/>
+          <line class="edge-A" x1="210" y1="60" x2="290" y2="60"/>
+          <line class="edge-A" x1="290" y1="60" x2="490" y2="220"/>
+          <line class="edge-A" x1="490" y1="220" x2="490" y2="290"/>
+          <line class="edge-A" x1="490" y1="290" x2="650" y2="240"/>
+          <line class="edge-A" x1="650" y1="240" x2="750" y2="320"/>
+        </g>
+
+        <!-- ============ NODES ============ -->
+        <!-- Off-path IT nodes -->
+        <g class="node-off" transform="translate(130,180)"><circle r="13"/><text text-anchor="middle" y="3" font-size="9">WAF</text></g>
+        <g class="node-off" transform="translate(210,125)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">MAI</text></g>
+        <g class="node-off" transform="translate(290,125)"><circle r="13"/><text text-anchor="middle" y="3" font-size="9">A02</text></g>
+        <g class="node-off" transform="translate(290,200)"><circle r="13"/><text text-anchor="middle" y="3" font-size="9">A03</text></g>
+        <g class="node-off" transform="translate(370,60)"><circle r="14"/><text text-anchor="middle" y="3" font-size="9">DC1</text></g>
+        <g class="node-off" transform="translate(370,125)"><circle r="14"/><text text-anchor="middle" y="3" font-size="9">DC2</text></g>
+        <g class="node-off" transform="translate(370,200)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">FIL</text></g>
+        <g class="node-off" transform="translate(370,270)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">SQL</text></g>
+        <g class="node-off" transform="translate(60,240)"><circle r="12"/><text text-anchor="middle" y="3" font-size="8">BAK</text></g>
+        <g class="node-off" transform="translate(60,320)"><rect x="-12" y="-12" width="24" height="24" rx="3"/><text text-anchor="middle" y="3" font-size="8">HR</text></g>
+        <g class="node-off" transform="translate(130,320)"><rect x="-12" y="-12" width="24" height="24" rx="3"/><text text-anchor="middle" y="3" font-size="8">DEV</text></g>
+        <g class="node-off" transform="translate(200,320)"><rect x="-12" y="-12" width="24" height="24" rx="3"/><text text-anchor="middle" y="3" font-size="8">FIN</text></g>
+        <g class="node-off" transform="translate(340,320)"><rect x="-12" y="-12" width="24" height="24" rx="3"/><text text-anchor="middle" y="3" font-size="8">PRT</text></g>
+
+        <!-- Off-path DMZ -->
+        <g class="node-off" transform="translate(490,430)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">AVP</text></g>
+
+        <!-- Off-path OT nodes -->
+        <g class="node-off" transform="translate(590,100)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">EOT</text></g>
+        <g class="node-off" transform="translate(810,240)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">DCS</text></g>
+        <g class="node-off" transform="translate(590,320)"><rect x="-12" y="-12" width="24" height="24"/><text text-anchor="middle" y="3" font-size="8">PL1</text></g>
+        <g class="node-off" transform="translate(670,320)"><rect x="-12" y="-12" width="24" height="24"/><text text-anchor="middle" y="3" font-size="8">PL2</text></g>
+        <g class="node-off" transform="translate(830,320)"><rect x="-12" y="-12" width="24" height="24"/><text text-anchor="middle" y="3" font-size="8">PL4</text></g>
+        <g class="node-off" transform="translate(910,320)"><rect x="-12" y="-12" width="24" height="24"/><text text-anchor="middle" y="3" font-size="8">PL5</text></g>
+        <g class="node-off" transform="translate(590,400)"><rect x="-11" y="-11" width="22" height="22"/><text text-anchor="middle" y="3" font-size="7">RTU1</text></g>
+        <g class="node-off" transform="translate(670,400)"><rect x="-11" y="-11" width="22" height="22"/><text text-anchor="middle" y="3" font-size="7">RTU2</text></g>
+        <g class="node-off" transform="translate(750,400)"><rect x="-11" y="-11" width="22" height="22"/><text text-anchor="middle" y="3" font-size="7">RTU3</text></g>
+        <g class="node-off" transform="translate(830,400)"><rect x="-11" y="-11" width="22" height="22"/><text text-anchor="middle" y="3" font-size="7">IED1</text></g>
+        <g class="node-off" transform="translate(910,400)"><rect x="-11" y="-11" width="22" height="22"/><text text-anchor="middle" y="3" font-size="7">IED2</text></g>
+        <g class="node-off" transform="translate(590,480)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">SN1</text></g>
+        <g class="node-off" transform="translate(670,480)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">SN2</text></g>
+        <g class="node-off" transform="translate(750,480)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">SN3</text></g>
+        <g class="node-off" transform="translate(830,480)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">AC1</text></g>
+        <g class="node-off" transform="translate(910,480)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">AC2</text></g>
+        <g class="node-off" transform="translate(660,540)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">VFD</text></g>
+        <g class="node-off" transform="translate(820,540)"><circle r="9"/><text text-anchor="middle" y="3" font-size="6">PMP</text></g>
+
+        <!-- Path C-only nodes -->
+        <g class="node-C" transform="translate(210,200)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">VPN</text></g>
+        <g class="node-C" transform="translate(270,320)"><rect x="-13" y="-13" width="26" height="26" rx="3"/><text text-anchor="middle" y="3" font-size="8">ADM</text></g>
+        <g class="node-C" transform="translate(490,360)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">OPC</text></g>
+
+        <!-- Path B-only nodes -->
+        <g class="node-B" transform="translate(130,320)"><rect x="-13" y="-13" width="26" height="26" rx="3"/><text text-anchor="middle" y="3" font-size="8">ENG</text></g>
+        <g class="node-B" transform="translate(590,170)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">HMI</text></g>
+        <g class="node-B" transform="translate(730,240)"><circle r="13"/><text text-anchor="middle" y="3" font-size="8">SC2</text></g>
+
+        <!-- Path A nodes (selected) -->
+        <g class="node-A node-verified hop" data-hop="1" transform="translate(50,100)">
+          <circle r="16"/>
+          <text text-anchor="middle" y="3" font-size="9">INT</text>
+        </g>
+        <g class="node-A node-verified hop" data-hop="2" transform="translate(130,100)">
+          <circle r="16"/>
+          <text text-anchor="middle" y="3" font-size="9">EDG</text>
+        </g>
+        <g class="node-A node-verified hop" data-hop="3" transform="translate(210,60)">
+          <circle r="16"/>
+          <text text-anchor="middle" y="3" font-size="9">W01</text>
+        </g>
+        <g class="node-A node-verified hop" data-hop="4" transform="translate(290,60)">
+          <circle r="16"/>
+          <text text-anchor="middle" y="3" font-size="9">A01</text>
+        </g>
+
+        <!-- Hop 5 (Jump-Host) — verified -->
+        <g class="node-A node-verified hop" data-hop="5" transform="translate(490,220)">
+          <circle r="17"/>
+          <text text-anchor="middle" y="3" font-size="9">JMP</text>
+        </g>
+
+        <!-- Hop 6 (Historian) — initial active hop -->
+        <g class="node-A hop is-active" data-hop="6" transform="translate(490,290)">
+          <circle r="20"/>
+          <text text-anchor="middle" y="3" font-size="9">HIS</text>
+        </g>
+
+        <!-- Floating pulse — repositioned via JS to follow active hop -->
+        <circle id="canvas-pulse" class="pulse" cx="490" cy="290"/>
+
+        <!-- Celebration light (hidden by default; runs along the path on verification) -->
+        <circle id="celebration-light" cx="0" cy="0" r="6" fill="#67e8f9" style="display:none; filter: drop-shadow(0 0 8px #67e8f9) drop-shadow(0 0 16px #06b6d4);"/>
+
+        <!-- Hop 7 (SCADA-PRI) — pending, also on Path C -->
+        <g class="node-A hop" data-hop="7" transform="translate(650,240)">
+          <circle r="17"/>
+          <text text-anchor="middle" y="3" font-size="9">SCD</text>
+        </g>
+
+        <!-- Hop 8 (TARGET PLC-03) -->
+        <g class="node-A hop" data-hop="8" transform="translate(750,320)">
+          <rect x="-18" y="-18" width="36" height="36" rx="2" stroke-dasharray="3 2"/>
+          <text text-anchor="middle" y="3" font-size="9" font-weight="700">PLC3</text>
+        </g>
+
+      </svg>
+
+    </div>
+
+    <!-- Thin progress bar (replaces storyboard rail) -->
+    <div class="panel border-t panel-border flex-shrink-0 px-4" style="height: 44px;">
+      <div class="h-full flex items-center gap-1">
+        <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mr-3">Path A</span>
+        <div class="flex items-center gap-1.5">
+          <button class="rail-dot verified" data-hop="1" title="Hop 1 · Internet"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot verified" data-hop="2" title="Hop 2 · Edge-FW"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot verified" data-hop="3" title="Hop 3 · Web-01"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot verified" data-hop="4" title="Hop 4 · App-01"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot verified" data-hop="5" title="Hop 5 · Jump-Host"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot active" data-hop="6" title="Hop 6 · Historian (active)"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot" data-hop="7" title="Hop 7 · SCADA-PRI"></button>
+          <span class="text-slate-700 text-[10px]">—</span>
+          <button class="rail-dot target" data-hop="8" title="Hop 8 · PLC-03 (target)"></button>
+        </div>
+        <span class="ml-auto text-[11px] text-slate-500">5 of 8 verified</span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT: Hop / Path / Asset detail panel (contextual to selection) -->
+  <aside id="detail-panel" class="panel border-l panel-border flex flex-col" style="width: 360px;">
+
+    <!-- View tabs (Path · Hop) -->
+    <div id="panel-tabs" class="flex-shrink-0 border-b panel-border flex items-center gap-1 px-2 py-1.5">
+      <button id="tab-path" class="panel-tab text-[11px] font-medium px-3 py-1 rounded text-slate-400 hover:text-slate-200">Path</button>
+      <button id="tab-hop" class="panel-tab text-[11px] font-medium px-3 py-1 rounded text-cyan-300 bg-cyan-950/50 active">Hop</button>
+    </div>
+
+    <!-- HOP VIEW -->
+    <div id="hop-view" class="flex-1 flex flex-col min-h-0">
+      <div class="px-4 py-3 border-b panel-border flex items-start justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="flex-shrink-0"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          <span id="hop-name" class="text-sm font-semibold text-slate-100 truncate">Local admin</span>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button id="show-asset" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+            Asset info
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button class="text-slate-500 hover:text-slate-200" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <!-- Difficulty + technique -->
+        <div class="px-4 pt-3 pb-2 space-y-2">
+          <div class="flex items-center gap-2 text-[11px]">
+            <span class="text-slate-500">Difficulty</span>
+            <span class="flex items-center gap-1.5">
+              <span id="hop-difficulty-bar" class="inline-block w-1 h-3 bg-rose-500 rounded-sm"></span>
+              <span id="hop-difficulty-label" class="text-rose-400 font-medium">Critical</span>
+            </span>
+          </div>
+          <div id="hop-technique" class="text-[11px] text-slate-500">
+            <span class="text-slate-400">T1078</span> · Valid Accounts <span class="text-slate-600">(Through AdminTo)</span>
+          </div>
+        </div>
+
+        <!-- Reasoning -->
+        <div id="hop-reasoning" class="px-4 py-3 text-[12px] text-slate-300 leading-relaxed border-t panel-border">
+          This edge indicates that the Jump-Host service account is a local administrator on Historian. By default, administrators have several ways to perform remote code execution on Windows systems, including via RDP, WMI, WinRM, the Service Control Manager, and remote DCOM execution.
+        </div>
+
+        <!-- Findings -->
+        <div id="hop-findings-section" class="px-4 py-3 border-t panel-border">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Findings</span>
+            <span id="hop-findings-count" class="text-[11px] text-slate-500">1</span>
+          </div>
+          <div id="hop-findings-list" class="space-y-2">
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-start justify-between gap-2 mb-1">
+                <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">Open</span>
+                <button class="text-[11px] text-slate-500 hover:text-slate-300">+ note</button>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Jump-Host service account has local admin rights on Historian.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pinned notes (auto-hide when 0 pinned) -->
+        <div id="pinned-section" class="px-4 py-3 border-t panel-border">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">📌 Pinned</span>
+            <span id="hop-pinned-count" class="text-[11px] text-slate-500">1</span>
+          </div>
+          <div id="hop-pinned-list">
+            <div class="rounded border border-amber-900/50 bg-amber-950/20 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <span class="text-[10px] text-slate-500">30m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Path A's hop 6 is the chokepoint. If Historian doesn't have cached creds for SCADA, the path dies here. <span class="text-violet-300">@TomerB</span> pulling the hive.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View all notes link (auto-hide when 0 notes) -->
+        <button id="show-notes" class="w-full px-4 py-2.5 border-t panel-border text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-slate-900/40 flex items-center justify-between transition-colors">
+          <span class="flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>View all notes (<span id="hop-notes-count">8</span>)</span>
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <!-- Actions -->
+      <div class="border-t panel-border p-3 flex items-center gap-2 flex-shrink-0 relative">
+        <button id="btn-note" class="px-3 py-1.5 rounded text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-800 flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Add note
+        </button>
+        <div class="flex-1"></div>
+        <div class="relative">
+          <button id="btn-status" class="status-btn" data-state="in_progress" aria-haspopup="true">
+            <svg id="status-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span id="status-label">In progress</span>
+            <span id="status-time" class="text-slate-500 text-[10px] hidden"></span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <!-- Status dropdown menu -->
+          <div id="status-menu" class="status-menu hidden absolute z-30" style="bottom: calc(100% + 6px); right: 0;">
+            <button class="status-menu-item" data-state="in_progress">
+              <svg class="icon-in_progress" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>In progress</span>
+            </button>
+            <button class="status-menu-item" data-state="verified">
+              <svg class="icon-verified" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>Verified</span>
+            </button>
+            <button class="status-menu-item" data-state="failed">
+              <svg class="icon-failed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <span>Failed</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSET VIEW (hidden by default) -->
+    <div id="asset-view" class="flex-1 flex flex-col min-h-0 hidden">
+      <div class="px-4 py-3 border-b panel-border flex items-start justify-between gap-2">
+        <button id="back-to-hop" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to hop
+        </button>
+        <button class="text-slate-500 hover:text-slate-200" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <div class="px-4 pt-3 pb-2">
+          <div class="flex items-center gap-2 mb-1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg>
+            <span id="asset-name" class="text-sm font-semibold text-slate-100">Historian</span>
+          </div>
+          <div id="asset-subtitle" class="text-[11px] text-slate-500">Endpoint · Windows Server 2019</div>
+        </div>
+
+        <!-- Asset metadata -->
+        <div id="asset-properties-section" class="px-4 py-3 border-t panel-border">
+          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-2">Properties</div>
+          <div id="asset-properties-grid" class="grid grid-cols-[80px_1fr] gap-y-1.5 text-[11px]">
+            <span class="text-slate-500">DN</span><span class="text-slate-300 font-mono text-[10px] break-all">CN=HISTORIAN,OU=DMZ,DC=DSEC,DC=LOCAL</span>
+            <span class="text-slate-500">IP</span><span class="text-slate-300 font-mono">10.0.2.45</span>
+            <span class="text-slate-500">MAC</span><span class="text-slate-300 font-mono">00:1B:21:33:8A:9F</span>
+            <span class="text-slate-500">OS</span><span class="text-slate-300">Windows Server 2019</span>
+            <span class="text-slate-500">Subnet</span><span class="text-slate-300 font-mono">10.0.2.0/24</span>
+            <span class="text-slate-500">Last logon</span><span class="text-slate-300">Apr 28 09:13</span>
+            <span class="text-slate-500">Status</span><span class="text-emerald-400">Enabled</span>
+          </div>
+        </div>
+
+        <!-- Asset findings -->
+        <div id="asset-findings-section" class="px-4 py-3 border-t panel-border">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Asset findings</span>
+            <span id="asset-findings-count" class="text-[11px] text-slate-500">2</span>
+          </div>
+          <div id="asset-findings-list" class="space-y-2">
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-start justify-between gap-2 mb-1">
+                <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">Open</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Historian has unconstrained delegation enabled.</div>
+            </div>
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-start justify-between gap-2 mb-1">
+                <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">Open</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">SMB signing not required.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES VIEW (hidden by default — sub-mode of hop) -->
+    <div id="notes-view" class="flex-1 flex flex-col min-h-0 hidden">
+      <div class="px-4 py-3 border-b panel-border flex items-start justify-between gap-2">
+        <button id="back-from-notes" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to hop
+        </button>
+        <button class="text-slate-500 hover:text-slate-200" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="px-4 pt-3 pb-2">
+        <div class="text-[11px] text-slate-500 mb-1"><span id="notes-breadcrumb">↳ Hop 6 · Local admin</span></div>
+        <div class="text-sm font-semibold text-slate-100">Notes</div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <!-- Pinned -->
+        <div id="notes-pinned-section" class="px-4 py-3 border-t panel-border">
+          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-2">📌 Pinned</div>
+          <div id="notes-pinned-list"></div>
+        </div>
+
+        <!-- All notes (chronological, newest first) -->
+        <div id="notes-all-section" class="px-4 py-3 border-t panel-border">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">All notes</span>
+            <span id="notes-all-count" class="text-[11px] text-slate-500">8</span>
+          </div>
+          <div id="notes-all-list" class="space-y-2">
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-emerald-900 text-emerald-200 flex items-center justify-center text-[9px] font-bold">TB</div>
+                <span class="text-[11px] font-medium text-slate-300">Tomer B.</span>
+                <span class="text-[10px] text-slate-500">3m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Agreed. Going to verify.</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-rose-900 text-rose-200 flex items-center justify-center text-[9px] font-bold">HS</div>
+                <span class="text-[11px] font-medium text-slate-300">Hadar S.</span>
+                <span class="text-[10px] text-slate-500">10m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">I'd say verify based on what we have. The cred + privilege check is solid — we don't need to actually exploit it for this scoped investigation.</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <span class="text-[10px] text-slate-500">15m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed"><span class="text-violet-300">@HadarS</span> does that mean we can verify this hop, or do we need actual exploitation evidence?</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-rose-900 text-rose-200 flex items-center justify-center text-[9px] font-bold">HS</div>
+                <span class="text-[11px] font-medium text-slate-300">Hadar S.</span>
+                <span class="text-[10px] text-slate-500">20m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Confirmed via SCCM that Historian's service account has logged into SCADA-PRI in the last 30 days. Cred reuse plausible.</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-emerald-900 text-emerald-200 flex items-center justify-center text-[9px] font-bold">TB</div>
+                <span class="text-[11px] font-medium text-slate-300">Tomer B.</span>
+                <span class="text-[10px] text-slate-500">25m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Hive pulled. Found cached creds for SCADA-PRI service account. Will verify validity next.</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <span class="text-[10px] text-slate-500">45m ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Notice this user also has a session on App-02 — relevant?</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <span class="text-[10px] text-slate-500">1h ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed"><span class="text-violet-300">@TomerB</span> can you pull the registry hive from this box?</div>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+              <div class="flex items-center gap-2 mb-1">
+                <div class="w-4 h-4 rounded-full bg-rose-900 text-rose-200 flex items-center justify-center text-[9px] font-bold">HS</div>
+                <span class="text-[11px] font-medium text-slate-300">Hadar S.</span>
+                <span class="text-[10px] text-slate-500">2h ago</span>
+              </div>
+              <div class="text-[12px] text-slate-300 leading-relaxed">Started looking at this hop. Historian is interesting — it sits between IT and OT, lots of trust connections.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions: same composer, scoped to hop -->
+      <div class="border-t panel-border p-3 flex-shrink-0">
+        <button id="btn-note-from-feed" class="w-full px-3 py-2 rounded text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-800 flex items-center justify-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Add note
+        </button>
+      </div>
+    </div>
+
+    <!-- PATH VIEW (hidden by default) -->
+    <div id="path-view" class="flex-1 flex flex-col min-h-0 hidden">
+      <div class="px-4 py-3 border-b panel-border">
+        <div class="text-sm font-semibold text-slate-100 mb-1">Path A — DMZ pivot</div>
+        <div class="flex items-center gap-2 text-[11px] text-slate-500">
+          <span>8 hops</span><span class="text-slate-700">·</span>
+          <span class="text-amber-400">5 of 8 verified</span><span class="text-slate-700">·</span>
+          <span>in progress</span>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <div class="px-4 py-3">
+          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-2">Hops</div>
+          <div class="space-y-1">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="1">
+              <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-slate-500 w-4">1</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">Internet</span>
+              <span class="text-[10px] text-slate-600">💬 0</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="2">
+              <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-slate-500 w-4">2</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">Edge-FW</span>
+              <span class="text-[10px] text-slate-600">💬 0</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="3">
+              <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-slate-500 w-4">3</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">Web-01</span>
+              <span class="text-[10px] text-slate-400">💬 2</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="4">
+              <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-slate-500 w-4">4</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">App-01</span>
+              <span class="text-[10px] text-slate-600">💬 0</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="5">
+              <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-slate-500 w-4">5</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">Jump-Host</span>
+              <span class="text-[10px] text-slate-500">💬 1</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded bg-cyan-950/30 ring-1 ring-cyan-900" data-hop="6">
+              <span class="rail-dot active flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-cyan-400 w-4">6</span>
+              <span class="text-xs font-semibold text-slate-100 flex-1 truncate">Historian (active)</span>
+              <span class="text-[10px] text-cyan-400">💬 8</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="7">
+              <span class="rail-dot flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-slate-500 w-4">7</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">SCADA-PRI</span>
+              <span class="text-[10px] text-slate-600">💬 0</span>
+            </button>
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="8">
+              <span class="rail-dot target flex-shrink-0" style="cursor:default;"></span>
+              <span class="text-[11px] text-amber-400 w-4">8</span>
+              <span class="text-xs text-slate-200 flex-1 truncate">PLC-03 (target)</span>
+              <span class="text-[10px] text-slate-600">💬 0</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t panel-border p-3 flex gap-2 flex-shrink-0">
+        <button id="btn-path-note" class="px-3 py-1.5 rounded text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-800 flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Add path note
+        </button>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<!-- MODAL BACKDROP + POP-OVERS -->
+<div id="modal-backdrop" class="hidden fixed inset-0 bg-black/60 z-40"></div>
+
+<!-- PATH VERIFICATION CELEBRATION OVERLAY -->
+<div id="path-celebration" class="hidden fixed inset-0 z-40 pointer-events-none">
+  <!-- Centered card -->
+  <div class="absolute pointer-events-auto" style="top: 38%; left: 50%; transform: translate(-50%, -50%); width: 480px;">
+    <div class="rounded-xl border border-emerald-700 bg-slate-900/95 backdrop-blur shadow-2xl overflow-hidden" style="box-shadow: 0 0 80px -10px rgba(16, 185, 129, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.6);">
+      <!-- Header bar -->
+      <div class="px-5 py-3 bg-gradient-to-r from-emerald-900/40 to-slate-900 border-b border-emerald-800 flex items-center gap-2">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        <span class="text-[11px] uppercase tracking-widest font-semibold text-emerald-400">Path verified end-to-end</span>
+        <button id="celebration-close" class="ml-auto text-slate-500 hover:text-slate-200" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <!-- Body -->
+      <div class="px-5 py-4">
+        <div class="text-base font-semibold text-slate-100 mb-1">DMZ pivot via Historian</div>
+        <div class="text-[11px] text-slate-500 mb-3">Path A · 8 hops</div>
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="rounded bg-slate-800/60 border border-slate-700 px-3 py-2">
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Findings</div>
+            <div class="text-lg font-semibold text-emerald-300 mt-0.5">11</div>
+          </div>
+          <div class="rounded bg-slate-800/60 border border-slate-700 px-3 py-2">
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Notes</div>
+            <div class="text-lg font-semibold text-slate-200 mt-0.5">12</div>
+          </div>
+          <div class="rounded bg-slate-800/60 border border-slate-700 px-3 py-2">
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Time</div>
+            <div class="text-lg font-semibold text-slate-200 mt-0.5">2h 47m</div>
+          </div>
+        </div>
+        <div class="text-[12px] text-slate-400 leading-relaxed mb-4">
+          Attack chain confirmed end-to-end. PLC-03 is reachable from the public internet through the DMZ pivot. The findings and notes are ready to assemble into an Intelligence Report.
+        </div>
+      </div>
+      <!-- CTAs -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-900/60 flex items-center gap-2">
+        <button class="celebration-cta px-3 py-1.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-700 flex items-center gap-1.5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Investigate another path
+        </button>
+        <div class="flex-1"></div>
+        <button class="celebration-cta px-3 py-1.5 rounded bg-slate-800 text-cyan-300 border border-cyan-800 text-[11px] font-medium hover:bg-cyan-950/40 flex items-center gap-1.5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Export report
+        </button>
+        <button class="celebration-cta px-3 py-1.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-700 text-[11px] font-semibold hover:bg-emerald-900/70 flex items-center gap-1.5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          Mark objective complete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="popover-note" class="popover hidden fixed bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+  <div class="flex items-center gap-2 mb-3">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <span class="text-sm font-semibold text-slate-100">Add note</span>
+    <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
+  </div>
+  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-slate-500" rows="8" placeholder="Type a note. Use @ to mention a teammate."></textarea>
+  <div class="flex items-center justify-between">
+    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+      <input type="checkbox" class="accent-cyan-500">
+      <span>📌 Pin to hop</span>
+    </label>
+    <div class="flex gap-2">
+      <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
+      <button class="popover-submit px-4 py-1.5 rounded bg-cyan-900/40 text-cyan-300 border border-cyan-800 text-xs font-medium hover:bg-cyan-900/60">Add note</button>
+    </div>
+  </div>
+</div>
+
+<div id="popover-fail" class="popover hidden fixed bg-slate-900 border border-rose-900 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+  <div class="flex items-center gap-2 mb-3">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <span class="text-sm font-semibold text-rose-300">Mark hop failed</span>
+    <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
+  </div>
+  <div class="text-[12px] text-slate-400 mb-3 leading-relaxed">Marking this hop as failed will break the path. The full path may need to be re-evaluated.</div>
+  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-rose-700" rows="8" placeholder="Why did this hop fail? Capture the reasoning so the conclusion is traceable."></textarea>
+  <div class="flex justify-end gap-2">
+    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
+    <button class="popover-submit px-4 py-1.5 rounded bg-rose-900/40 text-rose-300 border border-rose-800 text-xs font-medium hover:bg-rose-900/60">Mark failed</button>
+  </div>
+</div>
+
+<div id="popover-revert" class="popover hidden fixed bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+  <div class="flex items-center gap-2 mb-3">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span class="text-sm font-semibold text-slate-100">Revert to In progress</span>
+    <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
+  </div>
+  <div class="text-[12px] text-slate-400 mb-3 leading-relaxed">Reverting will reopen this hop for further investigation. The history of past verifications stays in the notes feed.</div>
+  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-slate-500" rows="8" placeholder="Why are you reverting? (optional)"></textarea>
+  <div class="flex justify-end gap-2">
+    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
+    <button class="popover-submit px-4 py-1.5 rounded bg-slate-800 text-slate-200 border border-slate-700 text-xs font-medium hover:bg-slate-700">Revert</button>
+  </div>
+</div>
+
+<div id="popover-verify" class="popover hidden fixed bg-slate-900 border border-emerald-900 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+  <div class="flex items-center gap-2 mb-3">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+    <span class="text-sm font-semibold text-emerald-300">Verify hop</span>
+    <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
+  </div>
+  <div class="text-[12px] text-slate-400 mb-3 leading-relaxed">Confirm this hop is real and reachable. Capture the reasoning so the next analyst can follow your work.</div>
+  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-emerald-700" rows="8" placeholder="What confirms this hop? (optional)"></textarea>
+  <div class="flex justify-end gap-2">
+    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
+    <button class="popover-submit px-4 py-1.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800 text-xs font-medium hover:bg-emerald-900/60">Verify</button>
+  </div>
+</div>
+
+<script>
+  // ============ DATA ============
+  const difficultyColor = {
+    Critical: { bar: 'bg-rose-500', label: 'text-rose-400' },
+    High:     { bar: 'bg-orange-500', label: 'text-orange-400' },
+    Medium:   { bar: 'bg-amber-500', label: 'text-amber-400' },
+    Low:      { bar: 'bg-emerald-500', label: 'text-emerald-400' },
+  };
+
+  const hopsData = {
+    1: {
+      name: "Initial access", difficulty: "Medium",
+      technique: { id: "T1190", name: "Exploit Public-Facing App", edge: null },
+      reasoning: "Attacker probes the public IP space. Edge firewall allows TLS inbound on TCP/443 for the customer-facing web tier — this is the foothold for everything that follows.",
+      findings: [], pinned: [], notes: [], assetId: 1,
+      state: "verified", stateChangedAt: "2h ago"
+    },
+    2: {
+      name: "Inbound TLS", difficulty: "Low",
+      technique: null,
+      reasoning: "Edge firewall permits TLS on 443 from any source for the public web tier. Standard configuration; the rule is intentional.",
+      findings: [], pinned: [], notes: [], assetId: 2,
+      state: "verified", stateChangedAt: "2h ago"
+    },
+    3: {
+      name: "Public-facing exploit", difficulty: "High",
+      technique: { id: "T1190", name: "Exploit Public-Facing App", edge: null },
+      reasoning: "Web-01 runs Foo-Server v1.2.0 which is vulnerable to CVE-2025-3104 — pre-auth RCE allowing shell access as the www-data user.",
+      findings: [
+        { state: "Verified", text: "Web-01 reachable from internet on TCP/443" },
+        { state: "Verified", text: "Foo-Server v1.2.0 confirmed via banner" },
+        { state: "Verified", text: "Patch KB5028592 not applied" }
+      ],
+      pinned: [],
+      notes: [
+        { author: "Tomer B.", initials: "TB", color: "emerald", time: "1h 30m ago", body: "Banner pull confirms Foo-Server v1.2.0 — same as the public exploit POC." },
+        { author: "Hadar S.", initials: "HS", color: "rose", time: "2h ago", body: "Confirmed Web-01 has a known CVE — patch is available but not deployed. Owner team needs ~3 weeks to patch per change control." }
+      ],
+      assetId: 3,
+      state: "verified", stateChangedAt: "1h 25m ago"
+    },
+    4: {
+      name: "Privilege escalation", difficulty: "High",
+      technique: { id: "T1068", name: "Exploitation for Privilege Escalation", edge: null },
+      reasoning: "Web-01's service account has SeImpersonate privilege on App-01 — a token-impersonation lift to SYSTEM via the local RPC service.",
+      findings: [
+        { state: "Verified", text: "www-data has SeImpersonate on App-01" },
+        { state: "Verified", text: "RPC service running as SYSTEM" }
+      ],
+      pinned: [], notes: [], assetId: 4,
+      state: "verified", stateChangedAt: "1h 10m ago"
+    },
+    5: {
+      name: "Lateral via RDP", difficulty: "Medium",
+      technique: { id: "T1021.001", name: "Remote Services: RDP", edge: null },
+      reasoning: "App tier service account can RDP to Jump-Host. Connection from app tier is whitelisted in the DMZ ACL — designed for admin operations, abusable here.",
+      findings: [
+        { state: "Verified", text: "App-01 → Jump-Host RDP allowed by DMZ ACL" },
+        { state: "Verified", text: "Service account has interactive logon rights" }
+      ],
+      pinned: [],
+      notes: [
+        { author: "Tomer B.", initials: "TB", color: "emerald", time: "50m ago", body: "Pulled the DMZ ACL — confirmed the App-01 → Jump-Host RDP rule was added on Apr 23. Same date as the firewall drift." }
+      ],
+      assetId: 5,
+      state: "verified", stateChangedAt: "45m ago"
+    },
+    6: {
+      name: "Local admin", difficulty: "Critical",
+      technique: { id: "T1078", name: "Valid Accounts", edge: "AdminTo" },
+      reasoning: "This edge indicates that the Jump-Host service account is a local administrator on Historian. By default, administrators have several ways to perform remote code execution on Windows systems, including via RDP, WMI, WinRM, the Service Control Manager, and remote DCOM execution.",
+      findings: [
+        { state: "Open", text: "Jump-Host service account has local admin rights on Historian." }
+      ],
+      state: "in_progress", stateChangedAt: null,
+      pinned: [
+        { author: "J. Smith", initials: "JS", color: "violet", time: "30m ago", body: "Path A's hop 6 is the chokepoint. If Historian doesn't have cached creds for SCADA, the path dies here. <span class=\"text-violet-300\">@TomerB</span> pulling the hive." }
+      ],
+      notes: [
+        { author: "Tomer B.", initials: "TB", color: "emerald", time: "3m ago", body: "Agreed. Going to verify." },
+        { author: "Hadar S.", initials: "HS", color: "rose", time: "10m ago", body: "I'd say verify based on what we have. The cred + privilege check is solid — we don't need to actually exploit it for this scoped investigation." },
+        { author: "J. Smith", initials: "JS", color: "violet", time: "15m ago", body: "<span class=\"text-violet-300\">@HadarS</span> does that mean we can verify this hop, or do we need actual exploitation evidence?" },
+        { author: "Hadar S.", initials: "HS", color: "rose", time: "20m ago", body: "Confirmed via SCCM that Historian's service account has logged into SCADA-PRI in the last 30 days. Cred reuse plausible." },
+        { author: "Tomer B.", initials: "TB", color: "emerald", time: "25m ago", body: "Hive pulled. Found cached creds for SCADA-PRI service account. Will verify validity next." },
+        { author: "J. Smith", initials: "JS", color: "violet", time: "45m ago", body: "Notice this user also has a session on App-02 — relevant?" },
+        { author: "J. Smith", initials: "JS", color: "violet", time: "1h ago", body: "<span class=\"text-violet-300\">@TomerB</span> can you pull the registry hive from this box?" },
+        { author: "Hadar S.", initials: "HS", color: "rose", time: "2h ago", body: "Started looking at this hop. Historian is interesting — it sits between IT and OT, lots of trust connections." }
+      ],
+      assetId: 6
+    },
+    7: {
+      name: "Process control write", difficulty: "Critical",
+      technique: { id: "T0855", name: "Modify Parameter (ICS)", edge: null },
+      reasoning: "Historian's service account is allowed to write process variables to SCADA-PRI's tag table over Modbus/TCP — typical historian-to-SCADA trust relationship that becomes a privileged write primitive.",
+      findings: [
+        { state: "Open", text: "Historian → SCADA-PRI Modbus/TCP permitted" },
+        { state: "Open", text: "Historian service account in SCADA write-allowed group" }
+      ],
+      pinned: [], notes: [], assetId: 7,
+      state: "in_progress", stateChangedAt: null
+    },
+    8: {
+      name: "Coil write to controller", difficulty: "Critical",
+      technique: { id: "T0831", name: "Manipulation of Control (ICS)", edge: null },
+      reasoning: "SCADA-PRI can write coil registers on PLC-03 over Modbus. Writing the stop coil halts the mixing line. PLC has no write-protect on operational coils.",
+      findings: [
+        { state: "Open", text: "SCADA-PRI → PLC-03 Modbus permitted" },
+        { state: "Open", text: "PLC-03 has no write-protect on stop coil" }
+      ],
+      pinned: [], notes: [], assetId: 8,
+      state: "in_progress", stateChangedAt: null
+    }
+  };
+
+  const assetsData = {
+    1: { name: "Internet", subtitle: "External · attacker origin",
+         properties: { Source: "Public IP space", Country: "Unknown" }, findings: [] },
+    2: { name: "Edge-FW", subtitle: "Firewall · Palo Alto PA-3260",
+         properties: { Vendor: "Palo Alto", Model: "PA-3260", IP: "10.0.0.1", Subnet: "10.0.0.0/30", Status: "Enabled" },
+         findings: [] },
+    3: { name: "Web-01", subtitle: "Endpoint · Ubuntu 22.04",
+         properties: { DN: "CN=WEB-01,OU=DMZ,DC=DSEC,DC=LOCAL", IP: "10.0.1.10", MAC: "00:1A:22:11:8B:01", OS: "Ubuntu 22.04", Subnet: "10.0.1.0/24", Status: "Enabled" },
+         findings: [{ state: "Open", text: "CVE-2025-3104 unpatched" }, { state: "Open", text: "Foo-Server runs as root" }] },
+    4: { name: "App-01", subtitle: "Endpoint · Windows Server 2019",
+         properties: { DN: "CN=APP-01,OU=APP,DC=DSEC,DC=LOCAL", IP: "10.0.1.20", MAC: "00:1A:22:11:8B:14", OS: "Windows Server 2019", Subnet: "10.0.1.0/24", Status: "Enabled" },
+         findings: [{ state: "Open", text: "Service account in local admins" }] },
+    5: { name: "Jump-Host", subtitle: "Endpoint · Windows Server 2019",
+         properties: { DN: "CN=JUMP-HOST,OU=DMZ,DC=DSEC,DC=LOCAL", IP: "10.0.2.30", MAC: "00:1B:21:33:8A:30", OS: "Windows Server 2019", Subnet: "10.0.2.0/24", Status: "Enabled" },
+         findings: [{ state: "Open", text: "Open RDP listener" }] },
+    6: { name: "Historian", subtitle: "Endpoint · Windows Server 2019",
+         properties: { DN: "CN=HISTORIAN,OU=DMZ,DC=DSEC,DC=LOCAL", IP: "10.0.2.45", MAC: "00:1B:21:33:8A:9F", OS: "Windows Server 2019", Subnet: "10.0.2.0/24", "Last logon": "Apr 28 09:13", Status: "Enabled" },
+         findings: [{ state: "Open", text: "Historian has unconstrained delegation enabled." }, { state: "Open", text: "SMB signing not required." }] },
+    7: { name: "SCADA-PRI", subtitle: "Endpoint · OT-L3 supervisory",
+         properties: { DN: "CN=SCADA-PRI,OU=OT-L3,DC=DSEC,DC=LOCAL", IP: "10.0.3.10", OS: "Windows Server 2019", Subnet: "10.0.3.0/24", Status: "Enabled" },
+         findings: [{ state: "Open", text: "Modbus/TCP listener on 502" }] },
+    8: { name: "PLC-03 (Mixing)", subtitle: "PLC · Siemens S7-1500",
+         properties: { Vendor: "Siemens", Model: "S7-1500", Firmware: "v3.1.2", IP: "10.0.4.13", Subnet: "10.0.4.0/24", Process: "Mixing line", Status: "Operational" },
+         findings: [] }
+  };
+
+  function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  // Render a pinned-note card. State-change notes (kind: verified/failed/in_progress) get distinctive styling.
+  function renderPinnedCard(p) {
+    const colorMap = {
+      violet: 'bg-violet-900 text-violet-200',
+      rose: 'bg-rose-900 text-rose-200',
+      emerald: 'bg-emerald-900 text-emerald-200',
+      amber: 'bg-amber-900 text-amber-200',
+      slate: 'bg-slate-700 text-slate-200',
+    };
+    const avatarCls = colorMap[p.color] || colorMap.violet;
+
+    let borderCls = 'border-amber-900/50 bg-amber-950/20';
+    let badgeIcon = '';
+    let badgeLabel = '';
+
+    if (p.kind === 'verified') {
+      borderCls = 'border-emerald-700/60 bg-emerald-950/30';
+      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+      badgeLabel = `<span class="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Verified</span>`;
+    } else if (p.kind === 'failed') {
+      borderCls = 'border-rose-700/60 bg-rose-950/30';
+      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fda4af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+      badgeLabel = `<span class="text-[10px] font-semibold text-rose-400 uppercase tracking-wide">Failed</span>`;
+    } else if (p.kind === 'in_progress') {
+      borderCls = 'border-slate-600/60 bg-slate-800/40';
+      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      badgeLabel = `<span class="text-[10px] font-semibold text-slate-300 uppercase tracking-wide">Reverted</span>`;
+    }
+
+    const header = p.kind
+      ? `<div class="flex items-center gap-2 mb-1.5">${badgeIcon}${badgeLabel}<span class="ml-auto text-[10px] text-slate-500">${p.time}</span></div>
+         <div class="flex items-center gap-2 mb-1">
+           <div class="w-4 h-4 rounded-full ${avatarCls} flex items-center justify-center text-[9px] font-bold">${p.initials}</div>
+           <span class="text-[11px] font-medium text-slate-300">${p.author}</span>
+         </div>`
+      : `<div class="flex items-center gap-2 mb-1">
+           <div class="w-4 h-4 rounded-full ${avatarCls} flex items-center justify-center text-[9px] font-bold">${p.initials}</div>
+           <span class="text-[11px] font-medium text-slate-300">${p.author}</span>
+           <span class="text-[10px] text-slate-500">${p.time}</span>
+         </div>`;
+
+    const bodyHtml = p.body ? `<div class="text-[12px] text-slate-300 leading-relaxed">${p.body}</div>` : '';
+
+    return `<div class="rounded border ${borderCls} p-2.5">${header}${bodyHtml}</div>`;
+  }
+
+  function renderHop(id) {
+    const hop = hopsData[id];
+    if (!hop) return;
+    document.getElementById('hop-name').textContent = hop.name;
+
+    // Difficulty
+    const d = difficultyColor[hop.difficulty] || difficultyColor.Medium;
+    const diffBar = document.getElementById('hop-difficulty-bar');
+    const diffLabel = document.getElementById('hop-difficulty-label');
+    diffBar.className = `inline-block w-1 h-3 ${d.bar} rounded-sm`;
+    diffLabel.className = `${d.label} font-medium`;
+    diffLabel.textContent = hop.difficulty;
+
+    // Technique (hide if null)
+    const techEl = document.getElementById('hop-technique');
+    if (hop.technique) {
+      const edgeStr = hop.technique.edge ? ` <span class="text-slate-600">(Through ${hop.technique.edge})</span>` : '';
+      techEl.innerHTML = `<span class="text-slate-400">${hop.technique.id}</span> · ${hop.technique.name}${edgeStr}`;
+      techEl.classList.remove('hidden');
+    } else {
+      techEl.classList.add('hidden');
+    }
+
+    // Reasoning
+    document.getElementById('hop-reasoning').textContent = hop.reasoning;
+
+    // Findings (hide section if empty)
+    const findingsSection = document.getElementById('hop-findings-section');
+    if (hop.findings.length === 0) {
+      findingsSection.classList.add('hidden');
+    } else {
+      findingsSection.classList.remove('hidden');
+      document.getElementById('hop-findings-count').textContent = hop.findings.length;
+      document.getElementById('hop-findings-list').innerHTML = hop.findings.map(f => `
+        <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">${f.state}</span>
+            <button class="text-[11px] text-slate-500 hover:text-slate-300">+ note</button>
+          </div>
+          <div class="text-[12px] text-slate-300 leading-relaxed">${escapeHtml(f.text)}</div>
+        </div>`).join('');
+    }
+
+    // Pinned (hide section if empty)
+    const pinnedSection = document.getElementById('pinned-section');
+    if (hop.pinned.length === 0) {
+      pinnedSection.classList.add('hidden');
+    } else {
+      pinnedSection.classList.remove('hidden');
+      document.getElementById('hop-pinned-count').textContent = hop.pinned.length;
+      document.getElementById('hop-pinned-list').innerHTML = hop.pinned.map(renderPinnedCard).join('');
+    }
+
+    // View all notes link (hide if 0 notes)
+    const notesLink = document.getElementById('show-notes');
+    if (hop.notes.length === 0) {
+      notesLink.classList.add('hidden');
+    } else {
+      notesLink.classList.remove('hidden');
+      document.getElementById('hop-notes-count').textContent = hop.notes.length;
+    }
+
+    // Status button — reflects current state
+    renderStatusButton(hop);
+  }
+
+  const stateMeta = {
+    in_progress: { label: 'In progress', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', strokeWidth: 2 },
+    verified:    { label: 'Verified',    icon: '<path d="M20 6 9 17l-5-5"/>', strokeWidth: 2.5 },
+    failed:      { label: 'Failed',      icon: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', strokeWidth: 2.5 },
+  };
+
+  function renderStatusButton(hop) {
+    const btn = document.getElementById('btn-status');
+    const meta = stateMeta[hop.state] || stateMeta.in_progress;
+    btn.dataset.state = hop.state;
+    document.getElementById('status-icon').innerHTML = meta.icon;
+    document.getElementById('status-icon').setAttribute('stroke-width', meta.strokeWidth);
+    document.getElementById('status-label').textContent = meta.label;
+    const timeEl = document.getElementById('status-time');
+    if (hop.stateChangedAt) {
+      timeEl.textContent = '· ' + hop.stateChangedAt;
+      timeEl.classList.remove('hidden');
+    } else {
+      timeEl.classList.add('hidden');
+    }
+    // Mark current item in the menu
+    document.querySelectorAll('#status-menu .status-menu-item').forEach(item => {
+      item.classList.toggle('current', item.dataset.state === hop.state);
+    });
+  }
+
+  function renderNotes(id) {
+    const hop = hopsData[id];
+    if (!hop) return;
+    const colorMap = {
+      violet: 'bg-violet-900 text-violet-200',
+      rose: 'bg-rose-900 text-rose-200',
+      emerald: 'bg-emerald-900 text-emerald-200',
+      amber: 'bg-amber-900 text-amber-200',
+      slate: 'bg-slate-700 text-slate-200',
+    };
+
+    document.getElementById('notes-breadcrumb').textContent = `↳ Hop ${id} · ${hop.name}`;
+
+    // Pinned section (hide if empty)
+    const pinnedSection = document.getElementById('notes-pinned-section');
+    const pinnedList = document.getElementById('notes-pinned-list');
+    if (hop.pinned.length === 0) {
+      pinnedSection.classList.add('hidden');
+    } else {
+      pinnedSection.classList.remove('hidden');
+      pinnedList.innerHTML = hop.pinned.map(renderPinnedCard).join('');
+    }
+
+    // All notes section
+    const allSection = document.getElementById('notes-all-section');
+    const allList = document.getElementById('notes-all-list');
+    document.getElementById('notes-all-count').textContent = hop.notes.length;
+
+    if (hop.notes.length === 0) {
+      allList.innerHTML = `
+        <div class="text-[11px] text-slate-500 leading-relaxed py-2">
+          No notes yet on this hop. Use <span class="text-slate-300">Add note</span> below to capture observations.
+        </div>`;
+    } else {
+      allList.innerHTML = hop.notes.map(n => {
+        const cls = colorMap[n.color] || colorMap.violet;
+        return `
+          <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-4 h-4 rounded-full ${cls} flex items-center justify-center text-[9px] font-bold">${n.initials}</div>
+              <span class="text-[11px] font-medium text-slate-300">${n.author}</span>
+              <span class="text-[10px] text-slate-500">${n.time}</span>
+            </div>
+            <div class="text-[12px] text-slate-300 leading-relaxed">${n.body}</div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  function renderAsset(id) {
+    const asset = assetsData[id];
+    if (!asset) return;
+    document.getElementById('asset-name').textContent = asset.name;
+    document.getElementById('asset-subtitle').textContent = asset.subtitle;
+
+    document.getElementById('asset-properties-grid').innerHTML = Object.entries(asset.properties).map(([k, v]) => `
+      <span class="text-slate-500">${k}</span><span class="text-slate-300 ${k === 'DN' ? 'font-mono text-[10px] break-all' : k === 'IP' || k === 'MAC' || k === 'Subnet' ? 'font-mono' : ''}">${v}</span>`).join('');
+
+    const findingsSection = document.getElementById('asset-findings-section');
+    if (asset.findings.length === 0) {
+      findingsSection.classList.add('hidden');
+    } else {
+      findingsSection.classList.remove('hidden');
+      document.getElementById('asset-findings-count').textContent = asset.findings.length;
+      document.getElementById('asset-findings-list').innerHTML = asset.findings.map(f => `
+        <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">${f.state}</span>
+          </div>
+          <div class="text-[12px] text-slate-300 leading-relaxed">${escapeHtml(f.text)}</div>
+        </div>`).join('');
+    }
+  }
+
+  // Track current hop for asset navigation
+  let currentHop = 6;
+
+  // ============ DOM REFS ============
+  const hopView = document.getElementById('hop-view');
+  const assetView = document.getElementById('asset-view');
+  const notesView = document.getElementById('notes-view');
+  const pathView = document.getElementById('path-view');
+  const showAssetBtn = document.getElementById('show-asset');
+  const showNotesBtn = document.getElementById('show-notes');
+  const backToHopBtn = document.getElementById('back-to-hop');
+  const backFromNotes = document.getElementById('back-from-notes');
+  const tabPath = document.getElementById('tab-path');
+  const tabHop = document.getElementById('tab-hop');
+
+  // Show only one of the four views; manage tab active state
+  function showView(name) {
+    hopView.classList.toggle('hidden', name !== 'hop');
+    assetView.classList.toggle('hidden', name !== 'asset');
+    notesView.classList.toggle('hidden', name !== 'notes');
+    pathView.classList.toggle('hidden', name !== 'path');
+    // Tab active state — Asset and Notes are sub-modes of Hop
+    const hopTabActive = (name === 'hop' || name === 'asset' || name === 'notes');
+    tabHop.classList.toggle('text-cyan-300', hopTabActive);
+    tabHop.classList.toggle('bg-cyan-950/50', hopTabActive);
+    tabHop.classList.toggle('text-slate-400', !hopTabActive);
+    tabPath.classList.toggle('text-cyan-300', name === 'path');
+    tabPath.classList.toggle('bg-cyan-950/50', name === 'path');
+    tabPath.classList.toggle('text-slate-400', name !== 'path');
+  }
+
+  // Tab clicks
+  tabPath.addEventListener('click', () => showView('path'));
+  tabHop.addEventListener('click', () => showView('hop'));
+
+  // Asset info toggle — renders the current hop's destination asset
+  showAssetBtn.addEventListener('click', () => {
+    const hop = hopsData[currentHop];
+    if (hop) renderAsset(hop.assetId);
+    showView('asset');
+  });
+  backToHopBtn.addEventListener('click', () => showView('hop'));
+
+  // Notes view toggle — renders the current hop's notes
+  showNotesBtn?.addEventListener('click', () => {
+    renderNotes(currentHop);
+    showView('notes');
+  });
+  backFromNotes?.addEventListener('click', () => showView('hop'));
+
+  // Add note button inside notes view → reuses Add note modal
+  document.getElementById('btn-note-from-feed')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('btn-note').click();
+  });
+
+  // Hop selection (progress-bar dots, path-view rows, canvas SVG nodes)
+  function selectHop(hop) {
+    const hopId = parseInt(hop);
+    currentHop = hopId;
+
+    // Update progress-bar dots: verified for < hop, active for == hop, default otherwise
+    document.querySelectorAll('.rail-dot[data-hop]').forEach(dot => {
+      const h = parseInt(dot.dataset.hop);
+      dot.classList.remove('active', 'verified');
+      if (h === hopId) dot.classList.add('active');
+      else if (h < hopId) dot.classList.add('verified');
+    });
+
+    // Update path-view row highlight
+    document.querySelectorAll('.path-hop-row').forEach(row => {
+      const h = parseInt(row.dataset.hop);
+      row.classList.remove('bg-cyan-950/30', 'ring-1', 'ring-cyan-900');
+      if (h === hopId) row.classList.add('bg-cyan-950/30', 'ring-1', 'ring-cyan-900');
+    });
+
+    // Update canvas: move pulse + swap is-active
+    document.querySelectorAll('#canvas g.hop').forEach(g => g.classList.remove('is-active'));
+    const canvasNode = document.querySelector(`#canvas g.hop[data-hop="${hopId}"]`);
+    if (canvasNode) {
+      canvasNode.classList.add('is-active');
+      const t = canvasNode.getAttribute('transform');
+      const m = t && t.match(/translate\(([^,]+),([^)]+)\)/);
+      const pulse = document.getElementById('canvas-pulse');
+      if (m && pulse) {
+        pulse.setAttribute('cx', m[1]);
+        pulse.setAttribute('cy', m[2]);
+        pulse.style.display = '';
+      }
+    }
+
+    // Render the hop's content into the panel
+    renderHop(hopId);
+
+    // Switch panel to hop view
+    showView('hop');
+  }
+
+  // Canvas hop clicks — SVG nodes with [data-hop] (the path-A nodes)
+  const detailPanel = document.getElementById('detail-panel');
+  const canvasPulse = document.querySelector('#canvas .pulse');
+
+  function openPanel() {
+    detailPanel.classList.remove('closed');
+    if (canvasPulse) canvasPulse.style.display = '';
+  }
+
+  document.querySelectorAll('.rail-dot[data-hop]').forEach(dot => {
+    dot.addEventListener('click', () => { openPanel(); selectHop(dot.dataset.hop); });
+  });
+  document.querySelectorAll('.path-hop-row').forEach(row => {
+    row.addEventListener('click', () => { openPanel(); selectHop(row.dataset.hop); });
+  });
+
+  function closePanelAndDeselect() {
+    detailPanel.classList.add('closed');
+    // Clear active state on rail dots
+    document.querySelectorAll('.rail-dot.active').forEach(d => d.classList.remove('active'));
+    // Clear active highlight on path-view rows
+    document.querySelectorAll('.path-hop-row').forEach(row => {
+      row.classList.remove('bg-cyan-950/30', 'ring-1', 'ring-cyan-900');
+    });
+    // Clear is-active on canvas hop nodes (returns them to base path-A styling)
+    document.querySelectorAll('#canvas g.hop.is-active').forEach(g => g.classList.remove('is-active'));
+    // Hide canvas pulse
+    if (canvasPulse) canvasPulse.style.display = 'none';
+  }
+
+  document.querySelectorAll('#canvas g.hop[data-hop]').forEach(node => {
+    node.addEventListener('click', () => {
+      openPanel();
+      selectHop(node.dataset.hop);
+    });
+  });
+
+  // Close X buttons in the panel
+  document.querySelectorAll('#detail-panel button[aria-label="Close"]').forEach(btn => {
+    btn.addEventListener('click', closePanelAndDeselect);
+  });
+
+  // Path note button reuses the same Add note modal
+  document.getElementById('btn-path-note')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('btn-note').click();
+  });
+
+  // Action modals
+  const popoverNote = document.getElementById('popover-note');
+  const popoverFail = document.getElementById('popover-fail');
+  const popoverVerify = document.getElementById('popover-verify');
+  const popoverRevert = document.getElementById('popover-revert');
+  const allPopovers = [popoverNote, popoverFail, popoverVerify, popoverRevert];
+  const backdrop = document.getElementById('modal-backdrop');
+
+  function closeAllPopovers() {
+    allPopovers.forEach(p => p.classList.add('hidden'));
+    backdrop.classList.add('hidden');
+    // Reset textareas
+    allPopovers.forEach(p => { const ta = p.querySelector('textarea'); if (ta) ta.value = ''; });
+    pendingTransition = null;
+  }
+
+  function openPopover(popover) {
+    allPopovers.forEach(p => p.classList.add('hidden'));
+    popover.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    const ta = popover.querySelector('textarea');
+    if (ta) setTimeout(() => ta.focus(), 0);
+  }
+
+  // Add note button — same as before, opens the note modal
+  document.getElementById('btn-note').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPopover(popoverNote);
+  });
+
+  // Status dropdown
+  const statusBtn = document.getElementById('btn-status');
+  const statusMenu = document.getElementById('status-menu');
+  let pendingTransition = null;  // { hopId, fromState, toState }
+
+  statusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    statusMenu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', (e) => {
+    if (!statusMenu.contains(e.target) && e.target !== statusBtn) {
+      statusMenu.classList.add('hidden');
+    }
+  });
+
+  // Dropdown items
+  document.querySelectorAll('#status-menu .status-menu-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      statusMenu.classList.add('hidden');
+      const targetState = item.dataset.state;
+      const hop = hopsData[currentHop];
+      if (!hop || hop.state === targetState) return;  // Q3: same state = no-op
+      pendingTransition = { hopId: currentHop, fromState: hop.state, toState: targetState };
+      // Open the right modal
+      if (targetState === 'verified') openPopover(popoverVerify);
+      else if (targetState === 'failed') openPopover(popoverFail);
+      else if (targetState === 'in_progress') openPopover(popoverRevert);
+    });
+  });
+
+  // Cancel buttons close
+  allPopovers.forEach(p => p.querySelector('.popover-cancel')?.addEventListener('click', closeAllPopovers));
+
+  // Submit handlers — note is just close; status transitions update state + create auto-note
+  popoverNote.querySelector('.popover-submit').addEventListener('click', closeAllPopovers);
+
+  function syncHopVisuals(hopId) {
+    const hop = hopsData[hopId];
+    if (!hop) return;
+
+    // SVG canvas node — toggle node-verified class (failed could be added later)
+    const node = document.querySelector(`#canvas g.hop[data-hop="${hopId}"]`);
+    if (node) {
+      node.classList.toggle('node-verified', hop.state === 'verified');
+    }
+
+    // Progress-bar dot — preserve active state
+    const dot = document.querySelector(`.rail-dot[data-hop="${hopId}"]`);
+    if (dot) {
+      dot.classList.remove('verified', 'failed');
+      if (hop.state === 'verified') dot.classList.add('verified');
+      else if (hop.state === 'failed') dot.classList.add('failed');
+    }
+
+    // Path-view row's leading dot
+    const rowDot = document.querySelector(`.path-hop-row[data-hop="${hopId}"] .rail-dot`);
+    if (rowDot) {
+      rowDot.classList.remove('verified', 'failed');
+      if (hop.state === 'verified') rowDot.classList.add('verified');
+      else if (hop.state === 'failed') rowDot.classList.add('failed');
+    }
+  }
+
+  function commitTransition(popover) {
+    if (!pendingTransition) { closeAllPopovers(); return; }
+    const { hopId, fromState, toState } = pendingTransition;
+    const reasonText = popover.querySelector('textarea').value.trim();
+    const hop = hopsData[hopId];
+
+    // Was the path verified before this change?
+    const pathWasVerified = isPathVerified();
+
+    // Update state and timestamp
+    hop.state = toState;
+    hop.stateChangedAt = toState === 'in_progress' ? null : 'just now';
+
+    // Auto-pinned status-change note (with kind for distinctive styling)
+    const newNote = {
+      author: "J. Smith", initials: "JS", color: "violet",
+      time: "just now",
+      kind: toState,
+      body: reasonText ? escapeHtml(reasonText) : ''
+    };
+    hop.pinned.unshift(newNote);
+
+    // Sync canvas / rail / path-view visuals
+    syncHopVisuals(hopId);
+
+    // Path-level state — recompute and reflect
+    const pathNowVerified = isPathVerified();
+    syncPathState();
+
+    // Re-render hop view if currently viewing this hop
+    if (hopId === currentHop) renderHop(hopId);
+
+    closeAllPopovers();
+
+    // Per-hop verify tick (only if path isn't completing — celebration covers that case)
+    if (toState === 'verified' && !(pathNowVerified && !pathWasVerified)) {
+      playSingleVerifyTick();
+    }
+
+    // Path just became fully verified → CELEBRATE 🎉
+    if (!pathWasVerified && pathNowVerified) {
+      setTimeout(celebratePathVerification, 250);
+    }
+    // Path was verified but no longer is (a hop got reverted/failed) → tear down celebration
+    if (pathWasVerified && !pathNowVerified) {
+      teardownPathCelebration();
+    }
+  }
+
+  // ============ PATH-LEVEL STATE ============
+
+  function isPathVerified() {
+    return Object.values(hopsData).every(h => h.state === 'verified');
+  }
+
+  function countVerified() {
+    return Object.values(hopsData).filter(h => h.state === 'verified').length;
+  }
+
+  function syncPathState() {
+    const verifiedCount = countVerified();
+    const total = Object.keys(hopsData).length;
+    const allVerified = verifiedCount === total;
+
+    // Header progress text
+    const headerProgress = document.querySelector('header span.text-slate-400');
+    if (headerProgress) {
+      headerProgress.textContent = allVerified
+        ? `${verifiedCount}/${total} hops verified · path A`
+        : `${verifiedCount}/${total} hops verified · path A`;
+    }
+
+    // Mark Complete button enable when path verified
+    const markCompleteBtn = document.querySelector('header button[class*="cursor-not-allowed"], header button[data-mark-complete]');
+    if (markCompleteBtn) {
+      if (allVerified) {
+        markCompleteBtn.classList.remove('bg-slate-800', 'text-slate-500', 'border-slate-700', 'cursor-not-allowed');
+        markCompleteBtn.classList.add('bg-emerald-900/50', 'text-emerald-300', 'border-emerald-700', 'hover:bg-emerald-900/70');
+        markCompleteBtn.dataset.markComplete = 'enabled';
+      } else {
+        markCompleteBtn.classList.add('bg-slate-800', 'text-slate-500', 'border-slate-700', 'cursor-not-allowed');
+        markCompleteBtn.classList.remove('bg-emerald-900/50', 'text-emerald-300', 'border-emerald-700', 'hover:bg-emerald-900/70');
+        delete markCompleteBtn.dataset.markComplete;
+      }
+    }
+
+    // Path-view summary line
+    const pathSummary = document.querySelector('#path-view .px-4.py-3.border-b .text-\\[11px\\].text-slate-500');
+    if (pathSummary) {
+      const status = allVerified ? '<span class="text-emerald-400">✓ verified</span>' : (verifiedCount > 0 ? '<span class="text-amber-400">in progress</span>' : 'untouched');
+      pathSummary.innerHTML = `<span>${total} hops</span><span class="text-slate-700">·</span><span class="${allVerified ? 'text-emerald-400' : 'text-amber-400'}">${verifiedCount} of ${total} verified</span><span class="text-slate-700">·</span>${status}`;
+    }
+
+    // Path card on left — flip to verified state when path is fully verified
+    const pathACard = document.querySelector('.path-card.selected-A');
+    if (pathACard) {
+      const stateLine = pathACard.querySelector('.text-\\[11px\\].text-amber-400');
+      if (stateLine) {
+        if (allVerified) {
+          stateLine.className = 'text-[11px] text-emerald-400 mt-1 flex items-center gap-1';
+          stateLine.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Verified end-to-end';
+        } else {
+          stateLine.className = 'text-[11px] text-amber-400 mt-1';
+          stateLine.textContent = `${verifiedCount} of ${total} verified`;
+        }
+      }
+    }
+  }
+
+  // ============ AUDIO (Web Audio API synth) ============
+  let audioCtx = null;
+  let soundEnabled = true;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (Ctor) audioCtx = new Ctor();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playTone(freq, dur = 0.18, type = 'sine', vol = 0.12, when = 0) {
+    if (!soundEnabled) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    const t = ctx.currentTime + when;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+
+  function playHopTick(index) {
+    // Ascending pentatonic-ish scale across 8 hops — building anticipation
+    const freqs = [523, 587, 659, 784, 880, 1047, 1175, 1319]; // C5–E6
+    playTone(freqs[index] || 880, 0.16, 'sine', 0.1);
+  }
+
+  function playTargetThud() {
+    // Two-layer satisfying impact when the chain reaches the target
+    playTone(220, 0.4, 'sine', 0.18);
+    playTone(330, 0.35, 'triangle', 0.08, 0.02);
+  }
+
+  function playCelebrationChord() {
+    // Triumphant major chord, slightly arpeggiated, with octave up at the end
+    playTone(659, 0.7, 'sine', 0.1);          // E5
+    playTone(831, 0.7, 'sine', 0.1, 0.04);    // G#5
+    playTone(988, 0.7, 'sine', 0.1, 0.08);    // B5
+    playTone(1319, 0.9, 'sine', 0.08, 0.18);  // E6
+  }
+
+  // Subtle tick on individual hop verification (not the path-level celebration)
+  function playSingleVerifyTick() {
+    playTone(880, 0.12, 'sine', 0.08);
+    playTone(1319, 0.18, 'sine', 0.06, 0.04);
+  }
+
+  // ============ CELEBRATION ============
+
+  const celebrationOverlay = document.getElementById('path-celebration');
+  const celebrationLight = document.getElementById('celebration-light');
+
+  // Path A edge geometry — order matters (entry → target)
+  const pathAEdges = [
+    { x1: 50,  y1: 100, x2: 130, y2: 100 },
+    { x1: 130, y1: 100, x2: 210, y2: 60  },
+    { x1: 210, y1: 60,  x2: 290, y2: 60  },
+    { x1: 290, y1: 60,  x2: 490, y2: 220 },
+    { x1: 490, y1: 220, x2: 490, y2: 290 },
+    { x1: 490, y1: 290, x2: 650, y2: 240 },
+    { x1: 650, y1: 240, x2: 750, y2: 320 },
+  ];
+
+  function celebratePathVerification() {
+    // Phase 1: light travels along the path; each edge lights up green as the light passes
+    runLightAlongPath(() => {
+      // Phase 2: target flash + thud
+      flashTarget();
+      playTargetThud();
+      // Phase 3: card + sparks + chord
+      setTimeout(() => {
+        showCelebrationCard();
+        burstSparks();
+        playCelebrationChord();
+      }, 500);
+    });
+  }
+
+  function runLightAlongPath(onComplete) {
+    celebrationLight.style.display = '';
+    const edgeEls = document.querySelectorAll('#canvas .edge-A');
+    let i = 0;
+
+    function animateEdge(edge, callback) {
+      const dur = 220;
+      const start = performance.now();
+      function step(t) {
+        const progress = Math.min(1, (t - start) / dur);
+        const x = edge.x1 + (edge.x2 - edge.x1) * progress;
+        const y = edge.y1 + (edge.y2 - edge.y1) * progress;
+        celebrationLight.setAttribute('cx', x);
+        celebrationLight.setAttribute('cy', y);
+        if (progress < 1) requestAnimationFrame(step);
+        else callback();
+      }
+      requestAnimationFrame(step);
+    }
+
+    function next() {
+      if (i >= pathAEdges.length) {
+        celebrationLight.style.display = 'none';
+        onComplete();
+        return;
+      }
+      animateEdge(pathAEdges[i], () => {
+        if (edgeEls[i]) edgeEls[i].classList.add('verified-edge');
+        playHopTick(i);
+        i++;
+        next();
+      });
+    }
+    next();
+  }
+
+  function flashTarget() {
+    const target = document.querySelector('#canvas g.hop[data-hop="8"]');
+    if (target) {
+      target.classList.add('target-flash');
+      setTimeout(() => {
+        target.classList.remove('target-flash');
+        target.classList.add('node-verified');
+      }, 800);
+    }
+  }
+
+  function showCelebrationCard() {
+    celebrationOverlay.classList.remove('hidden');
+  }
+
+  function burstSparks() {
+    const colors = ['#10b981', '#06b6d4', '#67e8f9', '#6ee7b7', '#fbbf24'];
+    const card = celebrationOverlay.querySelector('.absolute');
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const originX = rect.left + rect.width / 2;
+    const originY = rect.top + 20;
+    for (let i = 0; i < 24; i++) {
+      const spark = document.createElement('div');
+      spark.className = 'spark';
+      spark.style.left = originX + 'px';
+      spark.style.top = originY + 'px';
+      spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+      const angle = (Math.PI * 2 * i) / 24 + (Math.random() - 0.5) * 0.4;
+      const dist = 80 + Math.random() * 100;
+      spark.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      spark.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+      document.body.appendChild(spark);
+      setTimeout(() => spark.remove(), 1000);
+    }
+  }
+
+  function teardownPathCelebration() {
+    document.querySelectorAll('#canvas .edge-A.verified-edge').forEach(e => e.classList.remove('verified-edge'));
+    celebrationOverlay.classList.add('hidden');
+  }
+
+  document.getElementById('celebration-close')?.addEventListener('click', () => celebrationOverlay.classList.add('hidden'));
+  celebrationOverlay.querySelectorAll('.celebration-cta').forEach(btn => btn.addEventListener('click', () => celebrationOverlay.classList.add('hidden')));
+
+  // Mute toggle
+  const btnMute = document.getElementById('btn-mute');
+  const iconSoundOn = document.getElementById('icon-sound-on');
+  const iconSoundOff = document.getElementById('icon-sound-off');
+  btnMute?.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    iconSoundOn.classList.toggle('hidden', !soundEnabled);
+    iconSoundOff.classList.toggle('hidden', soundEnabled);
+  });
+
+  popoverVerify.querySelector('.popover-submit').addEventListener('click', () => commitTransition(popoverVerify));
+  popoverFail.querySelector('.popover-submit').addEventListener('click', () => commitTransition(popoverFail));
+  popoverRevert.querySelector('.popover-submit').addEventListener('click', () => commitTransition(popoverRevert));
+
+  // Backdrop click + Esc close
+  backdrop.addEventListener('click', closeAllPopovers);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllPopovers();
+  });
+
+  // Objective brief collapse/expand
+  const objectiveToggle = document.getElementById('objective-toggle');
+  const objectiveDetails = document.getElementById('objective-details');
+  const objectiveChevron = document.getElementById('objective-chevron');
+  objectiveToggle.addEventListener('click', () => {
+    const open = !objectiveDetails.classList.contains('hidden');
+    objectiveDetails.classList.toggle('hidden');
+    objectiveChevron.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+  });
+
+  // Path card selection — click sets selected state (chain stays visible on all)
+  const pathCards = document.querySelectorAll('.path-card');
+  pathCards.forEach(card => {
+    card.addEventListener('click', () => {
+      pathCards.forEach(c => c.classList.remove('selected-A'));
+      card.classList.add('selected-A');
+    });
+  });
+</script>
+
+</body>
+</html>

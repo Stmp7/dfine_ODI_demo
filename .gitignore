@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
