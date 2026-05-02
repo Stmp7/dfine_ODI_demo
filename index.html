@@ -4,50 +4,89 @@
 <meta charset="UTF-8">
 <title>SCR-927 — Objective-Driven Investigation</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,900&display=swap" rel="stylesheet">
 <style>
-  body { background: #0a0e14; color: #c9d1d9; font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; overflow: hidden; }
-  .panel { background: #0f1420; }
-  .panel-border { border-color: #1f2937; }
+  :root {
+    --bg-app:        #f4f6fa;
+    --bg-surface:    #ffffff;
+    --bg-subtle:     #f8fafc;
+    --bg-hover:      #f1f5f9;
+    --border:        #e5e7eb;
+    --border-strong: #cbd5e1;
+    --text-primary:  #0f172a;
+    --text-secondary:#475569;
+    --text-muted:    #94a3b8;
+    --text-faint:    #cbd5e1;
+    --accent-teal:   #14b8a6;
+    --accent-teal-strong: #0d9488;
+    --accent-teal-soft:  #ccfbf1;
+    --accent-violet: #a855f7;
+    --status-ok:     #10b981;
+    --status-ok-soft:#d1fae5;
+    --status-warn:   #f59e0b;
+    --status-warn-soft:#fef3c7;
+    --status-fail:   #f43f5e;
+    --status-fail-soft:#ffe4e6;
+    --btn-primary-bg: #0f172a;
+    --btn-primary-text: #ffffff;
+    --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -3px rgba(15, 23, 42, 0.05);
+  }
 
-  /* Off-path */
-  .node-off circle, .node-off rect { fill: #1e293b; stroke: #475569; stroke-width: 1; }
+  body {
+    background: var(--bg-app);
+    color: var(--text-primary);
+    font-family: 'Satoshi', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .panel { background: var(--bg-surface); }
+  .panel-border { border-color: var(--border); }
+
+  /* ---- Canvas: nodes & edges ---- */
+
+  /* Off-path nodes — recessive light gray */
+  .node-off circle, .node-off rect { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1; }
   .node-off text { fill: #94a3b8; }
-  .node-off { opacity: 0.7; }
-  .edge-off { stroke: #475569; stroke-width: 1; opacity: 0.45; }
+  .node-off { opacity: 0.85; }
+  .edge-off { stroke: #cbd5e1; stroke-width: 1; opacity: 0.6; stroke-dasharray: 3 3; }
 
-  /* Selected (primary) path */
-  .edge-A { stroke: #06b6d4; stroke-width: 2.5; opacity: 0.9; }
-  .node-A circle, .node-A rect { fill: #0a2638; stroke: #06b6d4; stroke-width: 2; }
-  .node-A text { fill: #67e8f9; font-weight: 600; }
+  /* Selected (primary) path — teal */
+  .edge-A { stroke: var(--accent-teal); stroke-width: 2.5; opacity: 0.95; }
+  .node-A circle, .node-A rect { fill: var(--accent-teal-soft); stroke: var(--accent-teal); stroke-width: 2; }
+  .node-A text { fill: var(--accent-teal-strong); font-weight: 600; }
 
-  /* Alternate paths B and C — gray, recessive */
-  .edge-B, .edge-C { stroke: #475569; stroke-width: 1.5; opacity: 0.55; }
-  .node-B circle, .node-B rect, .node-C circle, .node-C rect { fill: #1e293b; stroke: #475569; stroke-width: 1; }
+  /* Alternate paths B and C — neutral, recessive (drawn but background) */
+  .edge-B, .edge-C { stroke: #cbd5e1; stroke-width: 1.5; opacity: 0.65; stroke-dasharray: 4 3; }
+  .node-B circle, .node-B rect, .node-C circle, .node-C rect { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1; }
   .node-B text, .node-C text { fill: #94a3b8; }
-  .node-B, .node-C { opacity: 0.7; }
+  .node-B, .node-C { opacity: 0.85; }
 
-  /* Active hop on selected path */
+  /* Active hop on selected path — solid teal fill */
   .node-active circle, .node-active rect,
-  .is-active circle, .is-active rect { fill: #06b6d4; stroke: #67e8f9; stroke-width: 3; }
+  .is-active circle, .is-active rect { fill: var(--accent-teal); stroke: var(--accent-teal-strong); stroke-width: 3; }
   .node-active text,
-  .is-active text { fill: #062c3a; font-weight: 700; }
+  .is-active text { fill: #ffffff; font-weight: 700; }
 
-  /* Verified hop */
-  .node-verified circle, .node-verified rect { stroke: #10b981 !important; }
-  .node-verified text { fill: #6ee7b7 !important; }
+  /* Verified hop — emerald accent */
+  .node-verified circle, .node-verified rect { fill: #d1fae5 !important; stroke: var(--status-ok) !important; }
+  .node-verified text { fill: #047857 !important; }
 
-  /* Pulse halo */
-  @keyframes pulse-halo { 0%, 100% { r: 24; opacity: 0.55; } 50% { r: 36; opacity: 0.0; } }
-  .pulse { animation: pulse-halo 1.6s ease-in-out infinite; fill: none; stroke: #06b6d4; stroke-width: 2; }
+  /* Pulse halo on active hop */
+  @keyframes pulse-halo { 0%, 100% { r: 24; opacity: 0.5; } 50% { r: 36; opacity: 0.0; } }
+  .pulse { animation: pulse-halo 1.6s ease-in-out infinite; fill: none; stroke: var(--accent-teal); stroke-width: 2; }
 
   /* Path verification celebration */
-  .edge-A.verified-edge { stroke: #10b981; stroke-width: 3; opacity: 1; filter: drop-shadow(0 0 4px #10b981); transition: all 200ms ease; }
+  .edge-A.verified-edge { stroke: var(--status-ok); stroke-width: 3; opacity: 1; filter: drop-shadow(0 0 4px rgba(16,185,129,0.4)); transition: all 200ms ease; }
   @keyframes target-flash {
-    0%   { fill: #f43f5e; }
+    0%   { fill: #fb7185; }
     25%  { fill: #fbbf24; }
     100% { fill: #10b981; }
   }
-  .target-flash circle, .target-flash rect { animation: target-flash 800ms ease-out forwards; stroke: #6ee7b7 !important; stroke-width: 3 !important; }
+  .target-flash circle, .target-flash rect { animation: target-flash 800ms ease-out forwards; stroke: #047857 !important; stroke-width: 3 !important; }
   @keyframes celebration-card-in {
     0%   { opacity: 0; transform: translate(-50%, -45%) scale(0.92); }
     60%  { opacity: 1; transform: translate(-50%, -52%) scale(1.02); }
@@ -58,17 +97,6 @@
   @keyframes spark-burst { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); } }
   .spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; animation: spark-burst 900ms ease-out forwards; }
 
-  /* Zone shading */
-  .zone-it { fill: #0a1422; opacity: 0.6; }
-  .zone-dmz { fill: #1f1810; opacity: 0.4; }
-  .zone-ot { fill: #0e1a18; opacity: 0.6; }
-
-  /* Rail (legacy card style, retained for any leftover refs) */
-  .rail-card { background: #0f1420; border: 1px solid #1f2937; border-radius: 8px; transition: all 0.15s; cursor: pointer; }
-  .rail-card:hover { border-color: #475569; }
-  .rail-card.active { border-color: #06b6d4; border-left-width: 4px; box-shadow: 0 6px 18px -6px rgba(6,182,212,0.5); background: linear-gradient(135deg, #0f1420 0%, #0a2638 100%); }
-  .rail-card.verified { border-color: #064e3b; }
-
   /* SVG hop nodes — clickable */
   .hop { cursor: pointer; }
   .hop:hover circle, .hop:hover rect { stroke-width: 3; }
@@ -77,45 +105,53 @@
   #detail-panel { transition: width 250ms ease, transform 250ms ease, opacity 200ms ease; overflow: hidden; }
   #detail-panel.closed { width: 0 !important; transform: translateX(20px); opacity: 0; border-left-width: 0; }
 
-  /* Status dropdown */
-  .status-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 5px; border: 1px solid; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-  .status-btn[data-state="in_progress"] { background: #0f172a; border-color: #475569; color: #cbd5e1; }
-  .status-btn[data-state="in_progress"]:hover { background: #1e293b; }
-  .status-btn[data-state="verified"] { background: rgba(6,78,59,0.4); border-color: #047857; color: #6ee7b7; }
-  .status-btn[data-state="verified"]:hover { background: rgba(6,78,59,0.6); }
-  .status-btn[data-state="failed"] { background: rgba(76,5,25,0.4); border-color: #be123c; color: #fda4af; }
-  .status-btn[data-state="failed"]:hover { background: rgba(76,5,25,0.6); }
+  /* Status dropdown — light variants */
+  .status-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 9999px; border: 1px solid; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .status-btn[data-state="in_progress"] { background: #ffffff; border-color: var(--border-strong); color: var(--text-secondary); }
+  .status-btn[data-state="in_progress"]:hover { background: var(--bg-hover); }
+  .status-btn[data-state="verified"] { background: var(--status-ok-soft); border-color: #6ee7b7; color: #047857; }
+  .status-btn[data-state="verified"]:hover { background: #a7f3d0; }
+  .status-btn[data-state="failed"] { background: var(--status-fail-soft); border-color: #fda4af; color: #be123c; }
+  .status-btn[data-state="failed"]:hover { background: #fecdd3; }
 
-  .status-menu { background: #0f1420; border: 1px solid #334155; border-radius: 6px; box-shadow: 0 8px 20px -4px rgba(0,0,0,0.6); min-width: 200px; padding: 4px; }
-  .status-menu-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 4px; cursor: pointer; width: 100%; text-align: left; font-size: 12px; color: #cbd5e1; background: transparent; border: 0; }
-  .status-menu-item:hover { background: #1f2937; }
-  .status-menu-item.current { background: #1f2937; opacity: 0.6; cursor: default; }
-  .status-menu-item .icon-in_progress { color: #94a3b8; }
-  .status-menu-item .icon-verified { color: #6ee7b7; }
-  .status-menu-item .icon-failed { color: #fda4af; }
+  .status-menu { background: #ffffff; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 200px; padding: 4px; }
+  .status-menu-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; width: 100%; text-align: left; font-size: 12px; color: var(--text-primary); background: transparent; border: 0; }
+  .status-menu-item:hover { background: var(--bg-hover); }
+  .status-menu-item.current { background: var(--bg-hover); opacity: 0.6; cursor: default; }
+  .status-menu-item .icon-in_progress { color: var(--text-muted); }
+  .status-menu-item .icon-verified { color: var(--status-ok); }
+  .status-menu-item .icon-failed { color: var(--status-fail); }
 
   /* Thin progress bar dots */
-  .rail-dot { width: 10px; height: 10px; border-radius: 50%; background: #334155; border: 1px solid #475569; cursor: pointer; transition: all 0.15s; padding: 0; }
-  .rail-dot:hover { transform: scale(1.3); border-color: #94a3b8; }
-  .rail-dot.verified { background: #10b981; border-color: #10b981; }
-  .rail-dot.active { background: #06b6d4; border-color: #67e8f9; box-shadow: 0 0 0 4px rgba(6,182,212,0.25); }
-  .rail-dot.failed { background: #f43f5e; border-color: #fb7185; }
-  .rail-dot.target { background: transparent; border: 2px dashed #fbbf24; width: 14px; height: 14px; }
+  .rail-dot { width: 10px; height: 10px; border-radius: 50%; background: #e2e8f0; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.15s; padding: 0; }
+  .rail-dot:hover { transform: scale(1.3); border-color: var(--text-secondary); }
+  .rail-dot.verified { background: var(--status-ok); border-color: #047857; }
+  .rail-dot.active { background: var(--accent-teal); border-color: var(--accent-teal-strong); box-shadow: 0 0 0 4px rgba(20,184,166,0.20); }
+  .rail-dot.failed { background: var(--status-fail); border-color: #be123c; }
+  .rail-dot.target { background: transparent; border: 2px dashed var(--status-warn); width: 14px; height: 14px; }
 
-  .journal-entry { background: #0f1420; border: 1px solid #1f2937; border-radius: 6px; }
-  .path-card { background: #0f1420; border: 1px solid #1f2937; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
-  .path-card:hover { border-color: #475569; }
-  .path-card.selected-A { border-color: #06b6d4; border-left-width: 3px; }
-  .path-card.selected-B { border-left-color: #a78bfa; border-left-width: 3px; }
-  .path-card.selected-C { border-left-color: #fbbf24; border-left-width: 3px; }
+  /* Path cards in left panel */
+  .path-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.15s; }
+  .path-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+  .path-card.selected-A { border-color: var(--accent-teal); border-left-width: 3px; box-shadow: var(--shadow-sm); }
 
+  /* Scrollbar — light */
   *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
-  *::-webkit-scrollbar-thumb:hover { background: #334155; }
+  *::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+  *::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
 
-  .chip { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; border-width: 1px; }
-  .chip-btn { padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; border-width: 1px; }
+  .chip { padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; border-width: 1px; display: inline-flex; align-items: center; gap: 4px; }
+  .chip-btn { padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 500; border-width: 1px; }
+
+  /* Canvas grid pattern (light) */
+  .canvas-bg { background: var(--bg-app); background-image:
+    radial-gradient(circle at 1px 1px, rgba(15,23,42,0.06) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  /* Subtle card */
+  .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; }
 </style>
 </head>
 <body>
@@ -124,25 +160,25 @@
 <header class="panel border-b panel-border flex items-center justify-between px-5" style="height: 56px;">
   <div class="flex items-center gap-2 text-sm">
     <span class="text-slate-500">Network</span>
-    <span class="text-slate-700">›</span>
+    <span class="text-slate-300">›</span>
     <span class="text-slate-500">Objectives</span>
-    <span class="text-slate-700">›</span>
-    <span class="font-medium text-slate-200">Compromise PLC-03 (Mixing-Line)</span>
-    <span class="chip bg-cyan-950 text-cyan-300 border-cyan-900 ml-2">Path Traversal</span>
+    <span class="text-slate-300">›</span>
+    <span class="font-medium text-slate-800">Compromise PLC-03 (Mixing-Line)</span>
+    <span class="chip bg-teal-100 text-teal-700 border-teal-200 ml-2">Path Traversal</span>
   </div>
   <div class="flex items-center gap-3 text-xs">
-    <span class="chip bg-amber-950 text-amber-300 border-amber-900">Under Investigation</span>
-    <span class="text-slate-400">5/8 hops verified · path A</span>
-    <span class="text-slate-700">|</span>
+    <span class="chip bg-amber-100 text-amber-700 border-amber-300">Under Investigation</span>
+    <span class="text-slate-600">5/8 hops verified · path A</span>
+    <span class="text-slate-300">|</span>
     <div class="flex items-center gap-1.5">
-      <div class="w-6 h-6 rounded-full bg-violet-900 border border-violet-700 flex items-center justify-center text-[10px] font-medium text-violet-200">JS</div>
-      <span class="text-slate-400">J. Smith</span>
+      <div class="w-6 h-6 rounded-full bg-violet-100 border border-violet-300 flex items-center justify-center text-[10px] font-medium text-violet-700">JS</div>
+      <span class="text-slate-600">J. Smith</span>
     </div>
-    <button id="btn-mute" class="text-slate-500 hover:text-slate-200 p-1 rounded" aria-label="Toggle sound" title="Toggle sound">
+    <button id="btn-mute" class="text-slate-500 hover:text-slate-800 p-1 rounded" aria-label="Toggle sound" title="Toggle sound">
       <svg id="icon-sound-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
       <svg id="icon-sound-off" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
     </button>
-    <button class="px-3 py-1.5 rounded bg-slate-800 text-slate-500 border border-slate-700 text-xs font-medium cursor-not-allowed flex items-center gap-1.5">
+    <button class="px-3 py-1.5 rounded bg-slate-100 text-slate-500 border border-slate-200 text-xs font-medium cursor-not-allowed flex items-center gap-1.5">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
       Mark Complete
     </button>
@@ -156,26 +192,26 @@
   <aside class="panel border-r panel-border flex flex-col" style="width: 360px;">
 
     <div class="border-b panel-border">
-      <button id="objective-toggle" class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-900/40 transition-colors text-left">
+      <button id="objective-toggle" class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors text-left">
         <div class="min-w-0">
-          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-1">Objective</div>
-          <div class="text-sm font-semibold text-slate-200 truncate">Compromise PLC-03 (Mixing-Line)</div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mb-1">Objective</div>
+          <div class="text-sm font-semibold text-slate-800 truncate">Compromise PLC-03 (Mixing-Line)</div>
         </div>
         <svg id="objective-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" class="flex-shrink-0 ml-2 transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div id="objective-details" class="px-4 pb-3 hidden">
         <div class="grid grid-cols-2 gap-y-1.5 text-[11px]">
-          <span class="text-slate-500">Type</span><span class="text-slate-300">Path Traversal</span>
-          <span class="text-slate-500">Target</span><span class="text-cyan-300">PLC-03 / OT Level-1</span>
-          <span class="text-slate-500">Entry</span><span class="text-slate-300">any (open)</span>
-          <span class="text-slate-500">Created</span><span class="text-slate-400">2 days ago</span>
+          <span class="text-slate-500">Type</span><span class="text-slate-700">Path Traversal</span>
+          <span class="text-slate-500">Target</span><span class="text-teal-700">PLC-03 / OT Level-1</span>
+          <span class="text-slate-500">Entry</span><span class="text-slate-700">any (open)</span>
+          <span class="text-slate-500">Created</span><span class="text-slate-600">2 days ago</span>
         </div>
         <div class="mt-2 text-[11px] text-slate-500 leading-relaxed border-t panel-border pt-2">Customer needs to know whether mixing-line PLC is reachable from corporate IT post-DMZ drift on Apr 23.</div>
       </div>
     </div>
 
     <div class="px-4 pt-3 pb-2 flex items-center justify-between">
-      <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Dream paths</span>
+      <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Dream paths</span>
       <span class="text-[11px] text-slate-500">47 paths</span>
     </div>
 
@@ -183,53 +219,53 @@
 
       <!-- Path 1 — selected, in progress -->
       <div class="path-card selected-A p-3" data-path="1">
-        <div class="text-xs font-semibold text-slate-100">DMZ pivot · 8 hops</div>
-        <div class="text-[11px] text-amber-400 mt-1">5 of 8 verified</div>
+        <div class="text-xs font-semibold text-slate-900">DMZ pivot · 8 hops</div>
+        <div class="text-[11px] text-amber-600 mt-1">5 of 8 verified</div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Web-01 → Historian → PLC-03</div>
       </div>
 
       <!-- Path 2 — untouched -->
       <div class="path-card p-3" data-path="2">
-        <div class="text-xs font-semibold text-slate-200">Phishing · 8 hops</div>
+        <div class="text-xs font-semibold text-slate-800">Phishing · 8 hops</div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Mail-01 → Eng-WS → HMI-01 → PLC-03</div>
       </div>
 
       <!-- Path 3 — untouched -->
       <div class="path-card p-3" data-path="3">
-        <div class="text-xs font-semibold text-slate-200">VPN compromise · 7 hops</div>
+        <div class="text-xs font-semibold text-slate-800">VPN compromise · 7 hops</div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">VPN-GW → Adm-WS → OPC-SRV → PLC-03</div>
       </div>
 
       <!-- Path 4 — failed (chain hidden, dismissed) -->
       <div class="path-card p-3 opacity-70" data-path="4">
-        <div class="text-xs font-semibold text-slate-300">DMZ pivot · 9 hops</div>
-        <div class="text-[11px] text-rose-400 mt-1">Failed at hop 6</div>
+        <div class="text-xs font-semibold text-slate-700">DMZ pivot · 9 hops</div>
+        <div class="text-[11px] text-rose-600 mt-1">Failed at hop 6</div>
       </div>
 
       <!-- Path 5 — untouched -->
       <div class="path-card p-3" data-path="5">
-        <div class="text-xs font-semibold text-slate-200">Lateral movement · 10 hops</div>
+        <div class="text-xs font-semibold text-slate-800">Lateral movement · 10 hops</div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Eng-WS → Jump-Host → SCADA-PRI → PLC-03</div>
       </div>
 
       <!-- Path 6 — untouched -->
       <div class="path-card p-3" data-path="6">
-        <div class="text-xs font-semibold text-slate-200">Cred replay · 6 hops</div>
+        <div class="text-xs font-semibold text-slate-800">Cred replay · 6 hops</div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Adm-WS → Jump-Host → SCADA-PRI → PLC-03</div>
       </div>
 
       <!-- Path 7 — verified -->
       <div class="path-card p-3" data-path="7">
         <div class="flex items-center justify-between">
-          <div class="text-xs font-semibold text-slate-200">DMZ pivot · 4 hops</div>
-          <span class="text-emerald-400 text-[11px]">✓ Verified</span>
+          <div class="text-xs font-semibold text-slate-800">DMZ pivot · 4 hops</div>
+          <span class="text-emerald-600 text-[11px]">✓ Verified</span>
         </div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">VPN-GW → OPC-SRV → PLC-03</div>
       </div>
 
       <!-- Path 8 — untouched -->
       <div class="path-card p-3" data-path="8">
-        <div class="text-xs font-semibold text-slate-200">Phishing · 7 hops</div>
+        <div class="text-xs font-semibold text-slate-800">Phishing · 7 hops</div>
         <div class="path-detail text-[11px] text-slate-500 font-mono mt-2 pt-2 border-t panel-border">Mail-01 → Dev-WS → Eng-WS → PLC-03</div>
       </div>
 
@@ -240,14 +276,7 @@
   <main class="flex-1 flex flex-col min-w-0">
 
     <!-- Canvas -->
-    <div class="flex-1 relative overflow-hidden" style="background: radial-gradient(ellipse at 60% 50%, #0d1726 0%, #0a0e14 65%);">
-
-      <svg class="absolute inset-0 w-full h-full opacity-[0.04]" preserveAspectRatio="none">
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#9ca3af" stroke-width="0.5"/></pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)"/>
-      </svg>
+    <div class="flex-1 relative overflow-hidden canvas-bg">
 
       <svg id="canvas" class="absolute inset-0 w-full h-full" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
 
@@ -408,7 +437,7 @@
         <circle id="canvas-pulse" class="pulse" cx="490" cy="290"/>
 
         <!-- Celebration light (hidden by default; runs along the path on verification) -->
-        <circle id="celebration-light" cx="0" cy="0" r="6" fill="#67e8f9" style="display:none; filter: drop-shadow(0 0 8px #67e8f9) drop-shadow(0 0 16px #06b6d4);"/>
+        <circle id="celebration-light" cx="0" cy="0" r="6" fill="#14b8a6" style="display:none; filter: drop-shadow(0 0 8px rgba(20,184,166,0.6)) drop-shadow(0 0 16px rgba(13,148,136,0.4));"/>
 
         <!-- Hop 7 (SCADA-PRI) — pending, also on Path C -->
         <g class="node-A hop" data-hop="7" transform="translate(650,240)">
@@ -429,22 +458,22 @@
     <!-- Thin progress bar (replaces storyboard rail) -->
     <div class="panel border-t panel-border flex-shrink-0 px-4" style="height: 44px;">
       <div class="h-full flex items-center gap-1">
-        <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mr-3">Path A</span>
+        <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mr-3">Path A</span>
         <div class="flex items-center gap-1.5">
           <button class="rail-dot verified" data-hop="1" title="Hop 1 · Internet"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot verified" data-hop="2" title="Hop 2 · Edge-FW"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot verified" data-hop="3" title="Hop 3 · Web-01"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot verified" data-hop="4" title="Hop 4 · App-01"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot verified" data-hop="5" title="Hop 5 · Jump-Host"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot active" data-hop="6" title="Hop 6 · Historian (active)"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot" data-hop="7" title="Hop 7 · SCADA-PRI"></button>
-          <span class="text-slate-700 text-[10px]">—</span>
+          <span class="text-slate-300 text-[10px]">—</span>
           <button class="rail-dot target" data-hop="8" title="Hop 8 · PLC-03 (target)"></button>
         </div>
         <span class="ml-auto text-[11px] text-slate-500">5 of 8 verified</span>
@@ -458,23 +487,23 @@
 
     <!-- View tabs (Path · Hop) -->
     <div id="panel-tabs" class="flex-shrink-0 border-b panel-border flex items-center gap-1 px-2 py-1.5">
-      <button id="tab-path" class="panel-tab text-[11px] font-medium px-3 py-1 rounded text-slate-400 hover:text-slate-200">Path</button>
-      <button id="tab-hop" class="panel-tab text-[11px] font-medium px-3 py-1 rounded text-cyan-300 bg-cyan-950/50 active">Hop</button>
+      <button id="tab-path" class="panel-tab text-[11px] font-medium px-3 py-1 rounded text-slate-600 hover:text-slate-800">Path</button>
+      <button id="tab-hop" class="panel-tab text-[11px] font-medium px-3 py-1 rounded text-teal-700 bg-teal-100 active">Hop</button>
     </div>
 
     <!-- HOP VIEW -->
     <div id="hop-view" class="flex-1 flex flex-col min-h-0">
       <div class="px-4 py-3 border-b panel-border flex items-start justify-between gap-2">
         <div class="flex items-center gap-2 min-w-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" stroke-width="2" class="flex-shrink-0"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-          <span id="hop-name" class="text-sm font-semibold text-slate-100 truncate">Local admin</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" class="flex-shrink-0"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          <span id="hop-name" class="text-sm font-semibold text-slate-900 truncate">Local admin</span>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <button id="show-asset" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+          <button id="show-asset" class="text-[11px] text-teal-600 hover:text-teal-700 flex items-center gap-1">
             Asset info
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-          <button class="text-slate-500 hover:text-slate-200" aria-label="Close">
+          <button class="text-slate-500 hover:text-slate-800" aria-label="Close">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -487,32 +516,32 @@
             <span class="text-slate-500">Difficulty</span>
             <span class="flex items-center gap-1.5">
               <span id="hop-difficulty-bar" class="inline-block w-1 h-3 bg-rose-500 rounded-sm"></span>
-              <span id="hop-difficulty-label" class="text-rose-400 font-medium">Critical</span>
+              <span id="hop-difficulty-label" class="text-rose-600 font-medium">Critical</span>
             </span>
           </div>
           <div id="hop-technique" class="text-[11px] text-slate-500">
-            <span class="text-slate-400">T1078</span> · Valid Accounts <span class="text-slate-600">(Through AdminTo)</span>
+            <span class="text-slate-600">T1078</span> · Valid Accounts <span class="text-slate-400">(Through AdminTo)</span>
           </div>
         </div>
 
         <!-- Reasoning -->
-        <div id="hop-reasoning" class="px-4 py-3 text-[12px] text-slate-300 leading-relaxed border-t panel-border">
+        <div id="hop-reasoning" class="px-4 py-3 text-[12px] text-slate-700 leading-relaxed border-t panel-border">
           This edge indicates that the Jump-Host service account is a local administrator on Historian. By default, administrators have several ways to perform remote code execution on Windows systems, including via RDP, WMI, WinRM, the Service Control Manager, and remote DCOM execution.
         </div>
 
         <!-- Findings -->
         <div id="hop-findings-section" class="px-4 py-3 border-t panel-border">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Findings</span>
+            <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Findings</span>
             <span id="hop-findings-count" class="text-[11px] text-slate-500">1</span>
           </div>
           <div id="hop-findings-list" class="space-y-2">
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-start justify-between gap-2 mb-1">
-                <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">Open</span>
-                <button class="text-[11px] text-slate-500 hover:text-slate-300">+ note</button>
+                <span class="chip bg-slate-100 text-slate-600 border-slate-200 text-[10px]">Open</span>
+                <button class="text-[11px] text-slate-500 hover:text-slate-700">+ note</button>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Jump-Host service account has local admin rights on Historian.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Jump-Host service account has local admin rights on Historian.</div>
             </div>
           </div>
         </div>
@@ -520,23 +549,23 @@
         <!-- Pinned notes (auto-hide when 0 pinned) -->
         <div id="pinned-section" class="px-4 py-3 border-t panel-border">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">📌 Pinned</span>
+            <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">📌 Pinned</span>
             <span id="hop-pinned-count" class="text-[11px] text-slate-500">1</span>
           </div>
           <div id="hop-pinned-list">
-            <div class="rounded border border-amber-900/50 bg-amber-950/20 p-2.5">
+            <div class="rounded border border-amber-300 bg-amber-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
-                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <div class="w-4 h-4 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-700">J. Smith</span>
                 <span class="text-[10px] text-slate-500">30m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Path A's hop 6 is the chokepoint. If Historian doesn't have cached creds for SCADA, the path dies here. <span class="text-violet-300">@TomerB</span> pulling the hive.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Path A's hop 6 is the chokepoint. If Historian doesn't have cached creds for SCADA, the path dies here. <span class="text-violet-700">@TomerB</span> pulling the hive.</div>
             </div>
           </div>
         </div>
 
         <!-- View all notes link (auto-hide when 0 notes) -->
-        <button id="show-notes" class="w-full px-4 py-2.5 border-t panel-border text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-slate-900/40 flex items-center justify-between transition-colors">
+        <button id="show-notes" class="w-full px-4 py-2.5 border-t panel-border text-[11px] text-teal-600 hover:text-teal-700 hover:bg-slate-50 flex items-center justify-between transition-colors">
           <span class="flex items-center gap-1.5">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>View all notes (<span id="hop-notes-count">8</span>)</span>
@@ -547,7 +576,7 @@
 
       <!-- Actions -->
       <div class="border-t panel-border p-3 flex items-center gap-2 flex-shrink-0 relative">
-        <button id="btn-note" class="px-3 py-1.5 rounded text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-800 flex items-center gap-1.5">
+        <button id="btn-note" class="px-3 py-1.5 rounded text-slate-700 border border-slate-200 text-[11px] font-medium hover:bg-slate-100 flex items-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Add note
         </button>
@@ -582,11 +611,11 @@
     <!-- ASSET VIEW (hidden by default) -->
     <div id="asset-view" class="flex-1 flex flex-col min-h-0 hidden">
       <div class="px-4 py-3 border-b panel-border flex items-start justify-between gap-2">
-        <button id="back-to-hop" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+        <button id="back-to-hop" class="text-[11px] text-teal-600 hover:text-teal-700 flex items-center gap-1">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
           Back to hop
         </button>
-        <button class="text-slate-500 hover:text-slate-200" aria-label="Close">
+        <button class="text-slate-500 hover:text-slate-800" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -595,43 +624,43 @@
         <div class="px-4 pt-3 pb-2">
           <div class="flex items-center gap-2 mb-1">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg>
-            <span id="asset-name" class="text-sm font-semibold text-slate-100">Historian</span>
+            <span id="asset-name" class="text-sm font-semibold text-slate-900">Historian</span>
           </div>
           <div id="asset-subtitle" class="text-[11px] text-slate-500">Endpoint · Windows Server 2019</div>
         </div>
 
         <!-- Asset metadata -->
         <div id="asset-properties-section" class="px-4 py-3 border-t panel-border">
-          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-2">Properties</div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mb-2">Properties</div>
           <div id="asset-properties-grid" class="grid grid-cols-[80px_1fr] gap-y-1.5 text-[11px]">
-            <span class="text-slate-500">DN</span><span class="text-slate-300 font-mono text-[10px] break-all">CN=HISTORIAN,OU=DMZ,DC=DSEC,DC=LOCAL</span>
-            <span class="text-slate-500">IP</span><span class="text-slate-300 font-mono">10.0.2.45</span>
-            <span class="text-slate-500">MAC</span><span class="text-slate-300 font-mono">00:1B:21:33:8A:9F</span>
-            <span class="text-slate-500">OS</span><span class="text-slate-300">Windows Server 2019</span>
-            <span class="text-slate-500">Subnet</span><span class="text-slate-300 font-mono">10.0.2.0/24</span>
-            <span class="text-slate-500">Last logon</span><span class="text-slate-300">Apr 28 09:13</span>
-            <span class="text-slate-500">Status</span><span class="text-emerald-400">Enabled</span>
+            <span class="text-slate-500">DN</span><span class="text-slate-700 font-mono text-[10px] break-all">CN=HISTORIAN,OU=DMZ,DC=DSEC,DC=LOCAL</span>
+            <span class="text-slate-500">IP</span><span class="text-slate-700 font-mono">10.0.2.45</span>
+            <span class="text-slate-500">MAC</span><span class="text-slate-700 font-mono">00:1B:21:33:8A:9F</span>
+            <span class="text-slate-500">OS</span><span class="text-slate-700">Windows Server 2019</span>
+            <span class="text-slate-500">Subnet</span><span class="text-slate-700 font-mono">10.0.2.0/24</span>
+            <span class="text-slate-500">Last logon</span><span class="text-slate-700">Apr 28 09:13</span>
+            <span class="text-slate-500">Status</span><span class="text-emerald-600">Enabled</span>
           </div>
         </div>
 
         <!-- Asset findings -->
         <div id="asset-findings-section" class="px-4 py-3 border-t panel-border">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">Asset findings</span>
+            <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">Asset findings</span>
             <span id="asset-findings-count" class="text-[11px] text-slate-500">2</span>
           </div>
           <div id="asset-findings-list" class="space-y-2">
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-start justify-between gap-2 mb-1">
-                <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">Open</span>
+                <span class="chip bg-slate-100 text-slate-600 border-slate-200 text-[10px]">Open</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Historian has unconstrained delegation enabled.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Historian has unconstrained delegation enabled.</div>
             </div>
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-start justify-between gap-2 mb-1">
-                <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">Open</span>
+                <span class="chip bg-slate-100 text-slate-600 border-slate-200 text-[10px]">Open</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">SMB signing not required.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">SMB signing not required.</div>
             </div>
           </div>
         </div>
@@ -641,104 +670,104 @@
     <!-- NOTES VIEW (hidden by default — sub-mode of hop) -->
     <div id="notes-view" class="flex-1 flex flex-col min-h-0 hidden">
       <div class="px-4 py-3 border-b panel-border flex items-start justify-between gap-2">
-        <button id="back-from-notes" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+        <button id="back-from-notes" class="text-[11px] text-teal-600 hover:text-teal-700 flex items-center gap-1">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
           Back to hop
         </button>
-        <button class="text-slate-500 hover:text-slate-200" aria-label="Close">
+        <button class="text-slate-500 hover:text-slate-800" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
       <div class="px-4 pt-3 pb-2">
         <div class="text-[11px] text-slate-500 mb-1"><span id="notes-breadcrumb">↳ Hop 6 · Local admin</span></div>
-        <div class="text-sm font-semibold text-slate-100">Notes</div>
+        <div class="text-sm font-semibold text-slate-900">Notes</div>
       </div>
 
       <div class="flex-1 overflow-y-auto">
         <!-- Pinned -->
         <div id="notes-pinned-section" class="px-4 py-3 border-t panel-border">
-          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-2">📌 Pinned</div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mb-2">📌 Pinned</div>
           <div id="notes-pinned-list"></div>
         </div>
 
         <!-- All notes (chronological, newest first) -->
         <div id="notes-all-section" class="px-4 py-3 border-t panel-border">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold">All notes</span>
+            <span class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">All notes</span>
             <span id="notes-all-count" class="text-[11px] text-slate-500">8</span>
           </div>
           <div id="notes-all-list" class="space-y-2">
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-emerald-900 text-emerald-200 flex items-center justify-center text-[9px] font-bold">TB</div>
-                <span class="text-[11px] font-medium text-slate-300">Tomer B.</span>
+                <div class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">TB</div>
+                <span class="text-[11px] font-medium text-slate-700">Tomer B.</span>
                 <span class="text-[10px] text-slate-500">3m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Agreed. Going to verify.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Agreed. Going to verify.</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-rose-900 text-rose-200 flex items-center justify-center text-[9px] font-bold">HS</div>
-                <span class="text-[11px] font-medium text-slate-300">Hadar S.</span>
+                <div class="w-4 h-4 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-bold">HS</div>
+                <span class="text-[11px] font-medium text-slate-700">Hadar S.</span>
                 <span class="text-[10px] text-slate-500">10m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">I'd say verify based on what we have. The cred + privilege check is solid — we don't need to actually exploit it for this scoped investigation.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">I'd say verify based on what we have. The cred + privilege check is solid — we don't need to actually exploit it for this scoped investigation.</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
-                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <div class="w-4 h-4 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-700">J. Smith</span>
                 <span class="text-[10px] text-slate-500">15m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed"><span class="text-violet-300">@HadarS</span> does that mean we can verify this hop, or do we need actual exploitation evidence?</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed"><span class="text-violet-700">@HadarS</span> does that mean we can verify this hop, or do we need actual exploitation evidence?</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-rose-900 text-rose-200 flex items-center justify-center text-[9px] font-bold">HS</div>
-                <span class="text-[11px] font-medium text-slate-300">Hadar S.</span>
+                <div class="w-4 h-4 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-bold">HS</div>
+                <span class="text-[11px] font-medium text-slate-700">Hadar S.</span>
                 <span class="text-[10px] text-slate-500">20m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Confirmed via SCCM that Historian's service account has logged into SCADA-PRI in the last 30 days. Cred reuse plausible.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Confirmed via SCCM that Historian's service account has logged into SCADA-PRI in the last 30 days. Cred reuse plausible.</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-emerald-900 text-emerald-200 flex items-center justify-center text-[9px] font-bold">TB</div>
-                <span class="text-[11px] font-medium text-slate-300">Tomer B.</span>
+                <div class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">TB</div>
+                <span class="text-[11px] font-medium text-slate-700">Tomer B.</span>
                 <span class="text-[10px] text-slate-500">25m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Hive pulled. Found cached creds for SCADA-PRI service account. Will verify validity next.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Hive pulled. Found cached creds for SCADA-PRI service account. Will verify validity next.</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
-                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <div class="w-4 h-4 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-700">J. Smith</span>
                 <span class="text-[10px] text-slate-500">45m ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Notice this user also has a session on App-02 — relevant?</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Notice this user also has a session on App-02 — relevant?</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-violet-900 text-violet-200 flex items-center justify-center text-[9px] font-bold">JS</div>
-                <span class="text-[11px] font-medium text-slate-300">J. Smith</span>
+                <div class="w-4 h-4 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-bold">JS</div>
+                <span class="text-[11px] font-medium text-slate-700">J. Smith</span>
                 <span class="text-[10px] text-slate-500">1h ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed"><span class="text-violet-300">@TomerB</span> can you pull the registry hive from this box?</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed"><span class="text-violet-700">@TomerB</span> can you pull the registry hive from this box?</div>
             </div>
 
-            <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
               <div class="flex items-center gap-2 mb-1">
-                <div class="w-4 h-4 rounded-full bg-rose-900 text-rose-200 flex items-center justify-center text-[9px] font-bold">HS</div>
-                <span class="text-[11px] font-medium text-slate-300">Hadar S.</span>
+                <div class="w-4 h-4 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-bold">HS</div>
+                <span class="text-[11px] font-medium text-slate-700">Hadar S.</span>
                 <span class="text-[10px] text-slate-500">2h ago</span>
               </div>
-              <div class="text-[12px] text-slate-300 leading-relaxed">Started looking at this hop. Historian is interesting — it sits between IT and OT, lots of trust connections.</div>
+              <div class="text-[12px] text-slate-700 leading-relaxed">Started looking at this hop. Historian is interesting — it sits between IT and OT, lots of trust connections.</div>
             </div>
           </div>
         </div>
@@ -746,7 +775,7 @@
 
       <!-- Actions: same composer, scoped to hop -->
       <div class="border-t panel-border p-3 flex-shrink-0">
-        <button id="btn-note-from-feed" class="w-full px-3 py-2 rounded text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-800 flex items-center justify-center gap-1.5">
+        <button id="btn-note-from-feed" class="w-full px-3 py-2 rounded text-slate-700 border border-slate-200 text-[11px] font-medium hover:bg-slate-100 flex items-center justify-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Add note
         </button>
@@ -756,72 +785,72 @@
     <!-- PATH VIEW (hidden by default) -->
     <div id="path-view" class="flex-1 flex flex-col min-h-0 hidden">
       <div class="px-4 py-3 border-b panel-border">
-        <div class="text-sm font-semibold text-slate-100 mb-1">Path A — DMZ pivot</div>
+        <div class="text-sm font-semibold text-slate-900 mb-1">Path A — DMZ pivot</div>
         <div class="flex items-center gap-2 text-[11px] text-slate-500">
-          <span>8 hops</span><span class="text-slate-700">·</span>
-          <span class="text-amber-400">5 of 8 verified</span><span class="text-slate-700">·</span>
+          <span>8 hops</span><span class="text-slate-300">·</span>
+          <span class="text-amber-600">5 of 8 verified</span><span class="text-slate-300">·</span>
           <span>in progress</span>
         </div>
       </div>
 
       <div class="flex-1 overflow-y-auto">
         <div class="px-4 py-3">
-          <div class="text-[10px] uppercase tracking-widest text-slate-600 font-semibold mb-2">Hops</div>
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mb-2">Hops</div>
           <div class="space-y-1">
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="1">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="1">
               <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
               <span class="text-[11px] text-slate-500 w-4">1</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">Internet</span>
-              <span class="text-[10px] text-slate-600">💬 0</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">Internet</span>
+              <span class="text-[10px] text-slate-400">💬 0</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="2">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="2">
               <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
               <span class="text-[11px] text-slate-500 w-4">2</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">Edge-FW</span>
-              <span class="text-[10px] text-slate-600">💬 0</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">Edge-FW</span>
+              <span class="text-[10px] text-slate-400">💬 0</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="3">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="3">
               <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
               <span class="text-[11px] text-slate-500 w-4">3</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">Web-01</span>
-              <span class="text-[10px] text-slate-400">💬 2</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">Web-01</span>
+              <span class="text-[10px] text-slate-600">💬 2</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="4">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="4">
               <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
               <span class="text-[11px] text-slate-500 w-4">4</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">App-01</span>
-              <span class="text-[10px] text-slate-600">💬 0</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">App-01</span>
+              <span class="text-[10px] text-slate-400">💬 0</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="5">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="5">
               <span class="rail-dot verified flex-shrink-0" style="cursor:default;"></span>
               <span class="text-[11px] text-slate-500 w-4">5</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">Jump-Host</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">Jump-Host</span>
               <span class="text-[10px] text-slate-500">💬 1</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded bg-cyan-950/30 ring-1 ring-cyan-900" data-hop="6">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded bg-teal-50 ring-1 ring-teal-300" data-hop="6">
               <span class="rail-dot active flex-shrink-0" style="cursor:default;"></span>
-              <span class="text-[11px] text-cyan-400 w-4">6</span>
-              <span class="text-xs font-semibold text-slate-100 flex-1 truncate">Historian (active)</span>
-              <span class="text-[10px] text-cyan-400">💬 8</span>
+              <span class="text-[11px] text-teal-600 w-4">6</span>
+              <span class="text-xs font-semibold text-slate-900 flex-1 truncate">Historian (active)</span>
+              <span class="text-[10px] text-teal-600">💬 8</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="7">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="7">
               <span class="rail-dot flex-shrink-0" style="cursor:default;"></span>
               <span class="text-[11px] text-slate-500 w-4">7</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">SCADA-PRI</span>
-              <span class="text-[10px] text-slate-600">💬 0</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">SCADA-PRI</span>
+              <span class="text-[10px] text-slate-400">💬 0</span>
             </button>
-            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-900/60" data-hop="8">
+            <button class="path-hop-row w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-50" data-hop="8">
               <span class="rail-dot target flex-shrink-0" style="cursor:default;"></span>
-              <span class="text-[11px] text-amber-400 w-4">8</span>
-              <span class="text-xs text-slate-200 flex-1 truncate">PLC-03 (target)</span>
-              <span class="text-[10px] text-slate-600">💬 0</span>
+              <span class="text-[11px] text-amber-600 w-4">8</span>
+              <span class="text-xs text-slate-800 flex-1 truncate">PLC-03 (target)</span>
+              <span class="text-[10px] text-slate-400">💬 0</span>
             </button>
           </div>
         </div>
       </div>
 
       <div class="border-t panel-border p-3 flex gap-2 flex-shrink-0">
-        <button id="btn-path-note" class="px-3 py-1.5 rounded text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-800 flex items-center gap-1.5">
+        <button id="btn-path-note" class="px-3 py-1.5 rounded text-slate-700 border border-slate-200 text-[11px] font-medium hover:bg-slate-100 flex items-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Add path note
         </button>
@@ -832,55 +861,55 @@
 </div>
 
 <!-- MODAL BACKDROP + POP-OVERS -->
-<div id="modal-backdrop" class="hidden fixed inset-0 bg-black/60 z-40"></div>
+<div id="modal-backdrop" class="hidden fixed inset-0 bg-slate-900/30 z-40"></div>
 
 <!-- PATH VERIFICATION CELEBRATION OVERLAY -->
 <div id="path-celebration" class="hidden fixed inset-0 z-40 pointer-events-none">
   <!-- Centered card -->
   <div class="absolute pointer-events-auto" style="top: 38%; left: 50%; transform: translate(-50%, -50%); width: 480px;">
-    <div class="rounded-xl border border-emerald-700 bg-slate-900/95 backdrop-blur shadow-2xl overflow-hidden" style="box-shadow: 0 0 80px -10px rgba(16, 185, 129, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.6);">
+    <div class="rounded-2xl border border-emerald-300 bg-white backdrop-blur overflow-hidden" style="box-shadow: 0 0 60px -10px rgba(16, 185, 129, 0.35), 0 20px 40px -10px rgba(15, 23, 42, 0.18);">
       <!-- Header bar -->
-      <div class="px-5 py-3 bg-gradient-to-r from-emerald-900/40 to-slate-900 border-b border-emerald-800 flex items-center gap-2">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-        <span class="text-[11px] uppercase tracking-widest font-semibold text-emerald-400">Path verified end-to-end</span>
-        <button id="celebration-close" class="ml-auto text-slate-500 hover:text-slate-200" aria-label="Close">
+      <div class="px-5 py-3 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-200 flex items-center gap-2">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        <span class="text-[11px] uppercase tracking-widest font-semibold text-emerald-600">Path verified end-to-end</span>
+        <button id="celebration-close" class="ml-auto text-slate-500 hover:text-slate-800" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <!-- Body -->
       <div class="px-5 py-4">
-        <div class="text-base font-semibold text-slate-100 mb-1">DMZ pivot via Historian</div>
+        <div class="text-base font-semibold text-slate-900 mb-1">DMZ pivot via Historian</div>
         <div class="text-[11px] text-slate-500 mb-3">Path A · 8 hops</div>
         <div class="grid grid-cols-3 gap-3 mb-4">
-          <div class="rounded bg-slate-800/60 border border-slate-700 px-3 py-2">
+          <div class="rounded bg-slate-50 border border-slate-200 px-3 py-2">
             <div class="text-[10px] uppercase tracking-widest text-slate-500">Findings</div>
-            <div class="text-lg font-semibold text-emerald-300 mt-0.5">11</div>
+            <div class="text-lg font-semibold text-emerald-700 mt-0.5">11</div>
           </div>
-          <div class="rounded bg-slate-800/60 border border-slate-700 px-3 py-2">
+          <div class="rounded bg-slate-50 border border-slate-200 px-3 py-2">
             <div class="text-[10px] uppercase tracking-widest text-slate-500">Notes</div>
-            <div class="text-lg font-semibold text-slate-200 mt-0.5">12</div>
+            <div class="text-lg font-semibold text-slate-800 mt-0.5">12</div>
           </div>
-          <div class="rounded bg-slate-800/60 border border-slate-700 px-3 py-2">
+          <div class="rounded bg-slate-50 border border-slate-200 px-3 py-2">
             <div class="text-[10px] uppercase tracking-widest text-slate-500">Time</div>
-            <div class="text-lg font-semibold text-slate-200 mt-0.5">2h 47m</div>
+            <div class="text-lg font-semibold text-slate-800 mt-0.5">2h 47m</div>
           </div>
         </div>
-        <div class="text-[12px] text-slate-400 leading-relaxed mb-4">
+        <div class="text-[12px] text-slate-600 leading-relaxed mb-4">
           Attack chain confirmed end-to-end. PLC-03 is reachable from the public internet through the DMZ pivot. The findings and notes are ready to assemble into an Intelligence Report.
         </div>
       </div>
       <!-- CTAs -->
-      <div class="px-5 py-3 border-t border-slate-800 bg-slate-900/60 flex items-center gap-2">
-        <button class="celebration-cta px-3 py-1.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium hover:bg-slate-700 flex items-center gap-1.5">
+      <div class="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center gap-2">
+        <button class="celebration-cta px-3 py-1.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium hover:bg-slate-200 flex items-center gap-1.5">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           Investigate another path
         </button>
         <div class="flex-1"></div>
-        <button class="celebration-cta px-3 py-1.5 rounded bg-slate-800 text-cyan-300 border border-cyan-800 text-[11px] font-medium hover:bg-cyan-950/40 flex items-center gap-1.5">
+        <button class="celebration-cta px-3 py-1.5 rounded bg-slate-100 text-teal-700 border border-teal-300 text-[11px] font-medium hover:bg-teal-100 flex items-center gap-1.5">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Export report
         </button>
-        <button class="celebration-cta px-3 py-1.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-700 text-[11px] font-semibold hover:bg-emerald-900/70 flex items-center gap-1.5">
+        <button class="celebration-cta px-3 py-1.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-400 text-[11px] font-semibold hover:bg-emerald-200 flex items-center gap-1.5">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           Mark objective complete
         </button>
@@ -889,74 +918,74 @@
   </div>
 </div>
 
-<div id="popover-note" class="popover hidden fixed bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+<div id="popover-note" class="popover hidden fixed bg-white border border-slate-200 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
   <div class="flex items-center gap-2 mb-3">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-    <span class="text-sm font-semibold text-slate-100">Add note</span>
+    <span class="text-sm font-semibold text-slate-900">Add note</span>
     <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
   </div>
-  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-slate-500" rows="8" placeholder="Type a note. Use @ to mention a teammate."></textarea>
+  <textarea class="w-full bg-white border border-slate-200 rounded px-3 py-2 text-sm text-slate-700 placeholder-slate-400 mb-3 resize-none focus:outline-none focus:border-slate-400" rows="8" placeholder="Type a note. Use @ to mention a teammate."></textarea>
   <div class="flex items-center justify-between">
-    <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-      <input type="checkbox" class="accent-cyan-500">
+    <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+      <input type="checkbox" class="accent-teal-500">
       <span>📌 Pin to hop</span>
     </label>
     <div class="flex gap-2">
-      <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
-      <button class="popover-submit px-4 py-1.5 rounded bg-cyan-900/40 text-cyan-300 border border-cyan-800 text-xs font-medium hover:bg-cyan-900/60">Add note</button>
+      <button class="popover-cancel px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+      <button class="popover-submit px-4 py-1.5 rounded bg-teal-50 text-teal-700 border border-teal-300 text-xs font-medium hover:bg-teal-100">Add note</button>
     </div>
   </div>
 </div>
 
-<div id="popover-fail" class="popover hidden fixed bg-slate-900 border border-rose-900 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+<div id="popover-fail" class="popover hidden fixed bg-white border border-rose-300 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
   <div class="flex items-center gap-2 mb-3">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    <span class="text-sm font-semibold text-rose-300">Mark hop failed</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <span class="text-sm font-semibold text-rose-700">Mark hop failed</span>
     <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
   </div>
-  <div class="text-[12px] text-slate-400 mb-3 leading-relaxed">Marking this hop as failed will break the path. The full path may need to be re-evaluated.</div>
-  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-rose-700" rows="8" placeholder="Why did this hop fail? Capture the reasoning so the conclusion is traceable."></textarea>
+  <div class="text-[12px] text-slate-600 mb-3 leading-relaxed">Marking this hop as failed will break the path. The full path may need to be re-evaluated.</div>
+  <textarea class="w-full bg-white border border-slate-200 rounded px-3 py-2 text-sm text-slate-700 placeholder-slate-400 mb-3 resize-none focus:outline-none focus:border-rose-400" rows="8" placeholder="Why did this hop fail? Capture the reasoning so the conclusion is traceable."></textarea>
   <div class="flex justify-end gap-2">
-    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
-    <button class="popover-submit px-4 py-1.5 rounded bg-rose-900/40 text-rose-300 border border-rose-800 text-xs font-medium hover:bg-rose-900/60">Mark failed</button>
+    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+    <button class="popover-submit px-4 py-1.5 rounded bg-rose-100 text-rose-700 border border-rose-300 text-xs font-medium hover:bg-rose-200">Mark failed</button>
   </div>
 </div>
 
-<div id="popover-revert" class="popover hidden fixed bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+<div id="popover-revert" class="popover hidden fixed bg-white border border-slate-200 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
   <div class="flex items-center gap-2 mb-3">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    <span class="text-sm font-semibold text-slate-100">Revert to In progress</span>
+    <span class="text-sm font-semibold text-slate-900">Revert to In progress</span>
     <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
   </div>
-  <div class="text-[12px] text-slate-400 mb-3 leading-relaxed">Reverting will reopen this hop for further investigation. The history of past verifications stays in the notes feed.</div>
-  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-slate-500" rows="8" placeholder="Why are you reverting? (optional)"></textarea>
+  <div class="text-[12px] text-slate-600 mb-3 leading-relaxed">Reverting will reopen this hop for further investigation. The history of past verifications stays in the notes feed.</div>
+  <textarea class="w-full bg-white border border-slate-200 rounded px-3 py-2 text-sm text-slate-700 placeholder-slate-400 mb-3 resize-none focus:outline-none focus:border-slate-400" rows="8" placeholder="Why are you reverting? (optional)"></textarea>
   <div class="flex justify-end gap-2">
-    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
-    <button class="popover-submit px-4 py-1.5 rounded bg-slate-800 text-slate-200 border border-slate-700 text-xs font-medium hover:bg-slate-700">Revert</button>
+    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+    <button class="popover-submit px-4 py-1.5 rounded bg-slate-100 text-slate-800 border border-slate-200 text-xs font-medium hover:bg-slate-200">Revert</button>
   </div>
 </div>
 
-<div id="popover-verify" class="popover hidden fixed bg-slate-900 border border-emerald-900 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
+<div id="popover-verify" class="popover hidden fixed bg-white border border-emerald-300 rounded-lg shadow-2xl p-5 z-50" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 560px;">
   <div class="flex items-center gap-2 mb-3">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-    <span class="text-sm font-semibold text-emerald-300">Verify hop</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+    <span class="text-sm font-semibold text-emerald-700">Verify hop</span>
     <span class="ml-auto text-[11px] text-slate-500">↳ Hop 6 · Local admin</span>
   </div>
-  <div class="text-[12px] text-slate-400 mb-3 leading-relaxed">Confirm this hop is real and reachable. Capture the reasoning so the next analyst can follow your work.</div>
-  <textarea class="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 placeholder-slate-600 mb-3 resize-none focus:outline-none focus:border-emerald-700" rows="8" placeholder="What confirms this hop? (optional)"></textarea>
+  <div class="text-[12px] text-slate-600 mb-3 leading-relaxed">Confirm this hop is real and reachable. Capture the reasoning so the next analyst can follow your work.</div>
+  <textarea class="w-full bg-white border border-slate-200 rounded px-3 py-2 text-sm text-slate-700 placeholder-slate-400 mb-3 resize-none focus:outline-none focus:border-emerald-400" rows="8" placeholder="What confirms this hop? (optional)"></textarea>
   <div class="flex justify-end gap-2">
-    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">Cancel</button>
-    <button class="popover-submit px-4 py-1.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-800 text-xs font-medium hover:bg-emerald-900/60">Verify</button>
+    <button class="popover-cancel px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+    <button class="popover-submit px-4 py-1.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-medium hover:bg-emerald-200">Verify</button>
   </div>
 </div>
 
 <script>
   // ============ DATA ============
   const difficultyColor = {
-    Critical: { bar: 'bg-rose-500', label: 'text-rose-400' },
-    High:     { bar: 'bg-orange-500', label: 'text-orange-400' },
-    Medium:   { bar: 'bg-amber-500', label: 'text-amber-400' },
-    Low:      { bar: 'bg-emerald-500', label: 'text-emerald-400' },
+    Critical: { bar: 'bg-rose-500', label: 'text-rose-600' },
+    High:     { bar: 'bg-orange-500', label: 'text-orange-600' },
+    Medium:   { bar: 'bg-amber-500', label: 'text-amber-600' },
+    Low:      { bar: 'bg-emerald-500', label: 'text-emerald-600' },
   };
 
   const hopsData = {
@@ -1026,16 +1055,16 @@
       ],
       state: "in_progress", stateChangedAt: null,
       pinned: [
-        { author: "J. Smith", initials: "JS", color: "violet", time: "30m ago", body: "Path A's hop 6 is the chokepoint. If Historian doesn't have cached creds for SCADA, the path dies here. <span class=\"text-violet-300\">@TomerB</span> pulling the hive." }
+        { author: "J. Smith", initials: "JS", color: "violet", time: "30m ago", body: "Path A's hop 6 is the chokepoint. If Historian doesn't have cached creds for SCADA, the path dies here. <span class=\"text-violet-700\">@TomerB</span> pulling the hive." }
       ],
       notes: [
         { author: "Tomer B.", initials: "TB", color: "emerald", time: "3m ago", body: "Agreed. Going to verify." },
         { author: "Hadar S.", initials: "HS", color: "rose", time: "10m ago", body: "I'd say verify based on what we have. The cred + privilege check is solid — we don't need to actually exploit it for this scoped investigation." },
-        { author: "J. Smith", initials: "JS", color: "violet", time: "15m ago", body: "<span class=\"text-violet-300\">@HadarS</span> does that mean we can verify this hop, or do we need actual exploitation evidence?" },
+        { author: "J. Smith", initials: "JS", color: "violet", time: "15m ago", body: "<span class=\"text-violet-700\">@HadarS</span> does that mean we can verify this hop, or do we need actual exploitation evidence?" },
         { author: "Hadar S.", initials: "HS", color: "rose", time: "20m ago", body: "Confirmed via SCCM that Historian's service account has logged into SCADA-PRI in the last 30 days. Cred reuse plausible." },
         { author: "Tomer B.", initials: "TB", color: "emerald", time: "25m ago", body: "Hive pulled. Found cached creds for SCADA-PRI service account. Will verify validity next." },
         { author: "J. Smith", initials: "JS", color: "violet", time: "45m ago", body: "Notice this user also has a session on App-02 — relevant?" },
-        { author: "J. Smith", initials: "JS", color: "violet", time: "1h ago", body: "<span class=\"text-violet-300\">@TomerB</span> can you pull the registry hive from this box?" },
+        { author: "J. Smith", initials: "JS", color: "violet", time: "1h ago", body: "<span class=\"text-violet-700\">@TomerB</span> can you pull the registry hive from this box?" },
         { author: "Hadar S.", initials: "HS", color: "rose", time: "2h ago", body: "Started looking at this hop. Historian is interesting — it sits between IT and OT, lots of trust connections." }
       ],
       assetId: 6
@@ -1095,45 +1124,45 @@
   // Render a pinned-note card. State-change notes (kind: verified/failed/in_progress) get distinctive styling.
   function renderPinnedCard(p) {
     const colorMap = {
-      violet: 'bg-violet-900 text-violet-200',
-      rose: 'bg-rose-900 text-rose-200',
-      emerald: 'bg-emerald-900 text-emerald-200',
-      amber: 'bg-amber-900 text-amber-200',
-      slate: 'bg-slate-700 text-slate-200',
+      violet: 'bg-violet-100 text-violet-700',
+      rose: 'bg-rose-100 text-rose-700',
+      emerald: 'bg-emerald-100 text-emerald-700',
+      amber: 'bg-amber-100 text-amber-700',
+      slate: 'bg-slate-200 text-slate-800',
     };
     const avatarCls = colorMap[p.color] || colorMap.violet;
 
-    let borderCls = 'border-amber-900/50 bg-amber-950/20';
+    let borderCls = 'border-amber-300 bg-amber-50';
     let badgeIcon = '';
     let badgeLabel = '';
 
     if (p.kind === 'verified') {
-      borderCls = 'border-emerald-700/60 bg-emerald-950/30';
-      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
-      badgeLabel = `<span class="text-[10px] font-semibold text-emerald-400 uppercase tracking-wide">Verified</span>`;
+      borderCls = 'border-emerald-300 bg-emerald-50';
+      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+      badgeLabel = `<span class="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide">Verified</span>`;
     } else if (p.kind === 'failed') {
-      borderCls = 'border-rose-700/60 bg-rose-950/30';
-      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fda4af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
-      badgeLabel = `<span class="text-[10px] font-semibold text-rose-400 uppercase tracking-wide">Failed</span>`;
+      borderCls = 'border-rose-300 bg-rose-50';
+      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#be123c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+      badgeLabel = `<span class="text-[10px] font-semibold text-rose-600 uppercase tracking-wide">Failed</span>`;
     } else if (p.kind === 'in_progress') {
-      borderCls = 'border-slate-600/60 bg-slate-800/40';
-      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-      badgeLabel = `<span class="text-[10px] font-semibold text-slate-300 uppercase tracking-wide">Reverted</span>`;
+      borderCls = 'border-slate-300 bg-slate-50';
+      badgeIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      badgeLabel = `<span class="text-[10px] font-semibold text-slate-700 uppercase tracking-wide">Reverted</span>`;
     }
 
     const header = p.kind
       ? `<div class="flex items-center gap-2 mb-1.5">${badgeIcon}${badgeLabel}<span class="ml-auto text-[10px] text-slate-500">${p.time}</span></div>
          <div class="flex items-center gap-2 mb-1">
            <div class="w-4 h-4 rounded-full ${avatarCls} flex items-center justify-center text-[9px] font-bold">${p.initials}</div>
-           <span class="text-[11px] font-medium text-slate-300">${p.author}</span>
+           <span class="text-[11px] font-medium text-slate-700">${p.author}</span>
          </div>`
       : `<div class="flex items-center gap-2 mb-1">
            <div class="w-4 h-4 rounded-full ${avatarCls} flex items-center justify-center text-[9px] font-bold">${p.initials}</div>
-           <span class="text-[11px] font-medium text-slate-300">${p.author}</span>
+           <span class="text-[11px] font-medium text-slate-700">${p.author}</span>
            <span class="text-[10px] text-slate-500">${p.time}</span>
          </div>`;
 
-    const bodyHtml = p.body ? `<div class="text-[12px] text-slate-300 leading-relaxed">${p.body}</div>` : '';
+    const bodyHtml = p.body ? `<div class="text-[12px] text-slate-700 leading-relaxed">${p.body}</div>` : '';
 
     return `<div class="rounded border ${borderCls} p-2.5">${header}${bodyHtml}</div>`;
   }
@@ -1154,8 +1183,8 @@
     // Technique (hide if null)
     const techEl = document.getElementById('hop-technique');
     if (hop.technique) {
-      const edgeStr = hop.technique.edge ? ` <span class="text-slate-600">(Through ${hop.technique.edge})</span>` : '';
-      techEl.innerHTML = `<span class="text-slate-400">${hop.technique.id}</span> · ${hop.technique.name}${edgeStr}`;
+      const edgeStr = hop.technique.edge ? ` <span class="text-slate-400">(Through ${hop.technique.edge})</span>` : '';
+      techEl.innerHTML = `<span class="text-slate-600">${hop.technique.id}</span> · ${hop.technique.name}${edgeStr}`;
       techEl.classList.remove('hidden');
     } else {
       techEl.classList.add('hidden');
@@ -1172,12 +1201,12 @@
       findingsSection.classList.remove('hidden');
       document.getElementById('hop-findings-count').textContent = hop.findings.length;
       document.getElementById('hop-findings-list').innerHTML = hop.findings.map(f => `
-        <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+        <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
           <div class="flex items-start justify-between gap-2 mb-1">
-            <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">${f.state}</span>
-            <button class="text-[11px] text-slate-500 hover:text-slate-300">+ note</button>
+            <span class="chip bg-slate-100 text-slate-600 border-slate-200 text-[10px]">${f.state}</span>
+            <button class="text-[11px] text-slate-500 hover:text-slate-700">+ note</button>
           </div>
-          <div class="text-[12px] text-slate-300 leading-relaxed">${escapeHtml(f.text)}</div>
+          <div class="text-[12px] text-slate-700 leading-relaxed">${escapeHtml(f.text)}</div>
         </div>`).join('');
     }
 
@@ -1234,11 +1263,11 @@
     const hop = hopsData[id];
     if (!hop) return;
     const colorMap = {
-      violet: 'bg-violet-900 text-violet-200',
-      rose: 'bg-rose-900 text-rose-200',
-      emerald: 'bg-emerald-900 text-emerald-200',
-      amber: 'bg-amber-900 text-amber-200',
-      slate: 'bg-slate-700 text-slate-200',
+      violet: 'bg-violet-100 text-violet-700',
+      rose: 'bg-rose-100 text-rose-700',
+      emerald: 'bg-emerald-100 text-emerald-700',
+      amber: 'bg-amber-100 text-amber-700',
+      slate: 'bg-slate-200 text-slate-800',
     };
 
     document.getElementById('notes-breadcrumb').textContent = `↳ Hop ${id} · ${hop.name}`;
@@ -1261,19 +1290,19 @@
     if (hop.notes.length === 0) {
       allList.innerHTML = `
         <div class="text-[11px] text-slate-500 leading-relaxed py-2">
-          No notes yet on this hop. Use <span class="text-slate-300">Add note</span> below to capture observations.
+          No notes yet on this hop. Use <span class="text-slate-700">Add note</span> below to capture observations.
         </div>`;
     } else {
       allList.innerHTML = hop.notes.map(n => {
         const cls = colorMap[n.color] || colorMap.violet;
         return `
-          <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+          <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
             <div class="flex items-center gap-2 mb-1">
               <div class="w-4 h-4 rounded-full ${cls} flex items-center justify-center text-[9px] font-bold">${n.initials}</div>
-              <span class="text-[11px] font-medium text-slate-300">${n.author}</span>
+              <span class="text-[11px] font-medium text-slate-700">${n.author}</span>
               <span class="text-[10px] text-slate-500">${n.time}</span>
             </div>
-            <div class="text-[12px] text-slate-300 leading-relaxed">${n.body}</div>
+            <div class="text-[12px] text-slate-700 leading-relaxed">${n.body}</div>
           </div>`;
       }).join('');
     }
@@ -1286,7 +1315,7 @@
     document.getElementById('asset-subtitle').textContent = asset.subtitle;
 
     document.getElementById('asset-properties-grid').innerHTML = Object.entries(asset.properties).map(([k, v]) => `
-      <span class="text-slate-500">${k}</span><span class="text-slate-300 ${k === 'DN' ? 'font-mono text-[10px] break-all' : k === 'IP' || k === 'MAC' || k === 'Subnet' ? 'font-mono' : ''}">${v}</span>`).join('');
+      <span class="text-slate-500">${k}</span><span class="text-slate-700 ${k === 'DN' ? 'font-mono text-[10px] break-all' : k === 'IP' || k === 'MAC' || k === 'Subnet' ? 'font-mono' : ''}">${v}</span>`).join('');
 
     const findingsSection = document.getElementById('asset-findings-section');
     if (asset.findings.length === 0) {
@@ -1295,11 +1324,11 @@
       findingsSection.classList.remove('hidden');
       document.getElementById('asset-findings-count').textContent = asset.findings.length;
       document.getElementById('asset-findings-list').innerHTML = asset.findings.map(f => `
-        <div class="rounded border border-slate-800 bg-slate-900/40 p-2.5">
+        <div class="rounded border border-slate-200 bg-slate-50 p-2.5">
           <div class="flex items-start justify-between gap-2 mb-1">
-            <span class="chip bg-slate-800 text-slate-400 border-slate-700 text-[10px]">${f.state}</span>
+            <span class="chip bg-slate-100 text-slate-600 border-slate-200 text-[10px]">${f.state}</span>
           </div>
-          <div class="text-[12px] text-slate-300 leading-relaxed">${escapeHtml(f.text)}</div>
+          <div class="text-[12px] text-slate-700 leading-relaxed">${escapeHtml(f.text)}</div>
         </div>`).join('');
     }
   }
@@ -1327,12 +1356,12 @@
     pathView.classList.toggle('hidden', name !== 'path');
     // Tab active state — Asset and Notes are sub-modes of Hop
     const hopTabActive = (name === 'hop' || name === 'asset' || name === 'notes');
-    tabHop.classList.toggle('text-cyan-300', hopTabActive);
-    tabHop.classList.toggle('bg-cyan-950/50', hopTabActive);
-    tabHop.classList.toggle('text-slate-400', !hopTabActive);
-    tabPath.classList.toggle('text-cyan-300', name === 'path');
-    tabPath.classList.toggle('bg-cyan-950/50', name === 'path');
-    tabPath.classList.toggle('text-slate-400', name !== 'path');
+    tabHop.classList.toggle('text-teal-700', hopTabActive);
+    tabHop.classList.toggle('bg-teal-100', hopTabActive);
+    tabHop.classList.toggle('text-slate-600', !hopTabActive);
+    tabPath.classList.toggle('text-teal-700', name === 'path');
+    tabPath.classList.toggle('bg-teal-100', name === 'path');
+    tabPath.classList.toggle('text-slate-600', name !== 'path');
   }
 
   // Tab clicks
@@ -1376,8 +1405,8 @@
     // Update path-view row highlight
     document.querySelectorAll('.path-hop-row').forEach(row => {
       const h = parseInt(row.dataset.hop);
-      row.classList.remove('bg-cyan-950/30', 'ring-1', 'ring-cyan-900');
-      if (h === hopId) row.classList.add('bg-cyan-950/30', 'ring-1', 'ring-cyan-900');
+      row.classList.remove('bg-teal-50', 'ring-1', 'ring-teal-300');
+      if (h === hopId) row.classList.add('bg-teal-50', 'ring-1', 'ring-teal-300');
     });
 
     // Update canvas: move pulse + swap is-active
@@ -1424,7 +1453,7 @@
     document.querySelectorAll('.rail-dot.active').forEach(d => d.classList.remove('active'));
     // Clear active highlight on path-view rows
     document.querySelectorAll('.path-hop-row').forEach(row => {
-      row.classList.remove('bg-cyan-950/30', 'ring-1', 'ring-cyan-900');
+      row.classList.remove('bg-teal-50', 'ring-1', 'ring-teal-300');
     });
     // Clear is-active on canvas hop nodes (returns them to base path-A styling)
     document.querySelectorAll('#canvas g.hop.is-active').forEach(g => g.classList.remove('is-active'));
@@ -1609,7 +1638,7 @@
     const allVerified = verifiedCount === total;
 
     // Header progress text
-    const headerProgress = document.querySelector('header span.text-slate-400');
+    const headerProgress = document.querySelector('header span.text-slate-600');
     if (headerProgress) {
       headerProgress.textContent = allVerified
         ? `${verifiedCount}/${total} hops verified · path A`
@@ -1620,12 +1649,12 @@
     const markCompleteBtn = document.querySelector('header button[class*="cursor-not-allowed"], header button[data-mark-complete]');
     if (markCompleteBtn) {
       if (allVerified) {
-        markCompleteBtn.classList.remove('bg-slate-800', 'text-slate-500', 'border-slate-700', 'cursor-not-allowed');
-        markCompleteBtn.classList.add('bg-emerald-900/50', 'text-emerald-300', 'border-emerald-700', 'hover:bg-emerald-900/70');
+        markCompleteBtn.classList.remove('bg-slate-100', 'text-slate-500', 'border-slate-200', 'cursor-not-allowed');
+        markCompleteBtn.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-400', 'hover:bg-emerald-200');
         markCompleteBtn.dataset.markComplete = 'enabled';
       } else {
-        markCompleteBtn.classList.add('bg-slate-800', 'text-slate-500', 'border-slate-700', 'cursor-not-allowed');
-        markCompleteBtn.classList.remove('bg-emerald-900/50', 'text-emerald-300', 'border-emerald-700', 'hover:bg-emerald-900/70');
+        markCompleteBtn.classList.add('bg-slate-100', 'text-slate-500', 'border-slate-200', 'cursor-not-allowed');
+        markCompleteBtn.classList.remove('bg-emerald-100', 'text-emerald-700', 'border-emerald-400', 'hover:bg-emerald-200');
         delete markCompleteBtn.dataset.markComplete;
       }
     }
@@ -1633,20 +1662,20 @@
     // Path-view summary line
     const pathSummary = document.querySelector('#path-view .px-4.py-3.border-b .text-\\[11px\\].text-slate-500');
     if (pathSummary) {
-      const status = allVerified ? '<span class="text-emerald-400">✓ verified</span>' : (verifiedCount > 0 ? '<span class="text-amber-400">in progress</span>' : 'untouched');
-      pathSummary.innerHTML = `<span>${total} hops</span><span class="text-slate-700">·</span><span class="${allVerified ? 'text-emerald-400' : 'text-amber-400'}">${verifiedCount} of ${total} verified</span><span class="text-slate-700">·</span>${status}`;
+      const status = allVerified ? '<span class="text-emerald-600">✓ verified</span>' : (verifiedCount > 0 ? '<span class="text-amber-600">in progress</span>' : 'untouched');
+      pathSummary.innerHTML = `<span>${total} hops</span><span class="text-slate-300">·</span><span class="${allVerified ? 'text-emerald-600' : 'text-amber-600'}">${verifiedCount} of ${total} verified</span><span class="text-slate-300">·</span>${status}`;
     }
 
     // Path card on left — flip to verified state when path is fully verified
     const pathACard = document.querySelector('.path-card.selected-A');
     if (pathACard) {
-      const stateLine = pathACard.querySelector('.text-\\[11px\\].text-amber-400');
+      const stateLine = pathACard.querySelector('.text-\\[11px\\].text-amber-600');
       if (stateLine) {
         if (allVerified) {
-          stateLine.className = 'text-[11px] text-emerald-400 mt-1 flex items-center gap-1';
+          stateLine.className = 'text-[11px] text-emerald-600 mt-1 flex items-center gap-1';
           stateLine.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Verified end-to-end';
         } else {
-          stateLine.className = 'text-[11px] text-amber-400 mt-1';
+          stateLine.className = 'text-[11px] text-amber-600 mt-1';
           stateLine.textContent = `${verifiedCount} of ${total} verified`;
         }
       }
@@ -1792,7 +1821,7 @@
   }
 
   function burstSparks() {
-    const colors = ['#10b981', '#06b6d4', '#67e8f9', '#6ee7b7', '#fbbf24'];
+    const colors = ['#059669', '#0d9488', '#14b8a6', '#10b981', '#f59e0b'];
     const card = celebrationOverlay.querySelector('.absolute');
     if (!card) return;
     const rect = card.getBoundingClientRect();
