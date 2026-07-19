@@ -1,0 +1,6 @@
+{
+  "name": "dfine-brand-kit",
+  "description": "Build on-brand Dfine presentations with enforced palette, fonts, white backgrounds, role-correct colours, and a curated illustration/icon asset bank. Includes a validator that auto-fixes drift and rejects off-brand output.",
+  "version": "0.1.0",
+  "author": { "name": "Dfine" }
+}
